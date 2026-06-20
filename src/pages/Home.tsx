@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { API_BASE, ApiError, SSO_STATE_KEY, USER_TOKEN_KEY, USER_KEY, authApi } from '../lib/api'
-import { IconRadio, IconUsers } from '../lib/icons'
+import { ApiError, SSO_STATE_KEY, USER_TOKEN_KEY, USER_KEY, authApi } from '../lib/api'
 import type { AuthResponse, SsoAuthorizeResponse } from '../lib/types'
 
 function parseShareCode(input: string): string | null {
@@ -65,96 +64,49 @@ export default function Home() {
   }
 
   return (
-    <div className="page page-home">
-      <header className="hero rise">
-        <img src="/logo/IMG_0477.PNG" alt="SBC Live" className="app-logo app-logo-hero" />
-        <p className="hero-sub mono">{API_BASE}</p>
-      </header>
+    <div className="login-shell">
+      <div className="login-brand">
+        <img src="/logo/IMG_0477.PNG" alt="SBC Live" className="login-logo" />
+        <p className="login-tagline mono">Plateforme de lives SBC</p>
+      </div>
 
-      <main className="home-grid">
-        <form className="panel rise d1" onSubmit={loginLocal}>
-          <div className="panel-head">
-            <IconRadio />
-            <h2>Régie · Animateur</h2>
-          </div>
-          <p className="hint">Connectez-vous pour accéder au catalogue et animer un live.</p>
-
-          <button
-            className="btn btn-sbc"
-            type="button"
-            onClick={loginSso}
-            disabled={ssoLoading || busy}
-          >
+      <div className="login-body">
+        <form className="login-card" onSubmit={loginLocal}>
+          <button className="btn btn-sbc btn-xl" type="button" onClick={loginSso} disabled={ssoLoading || busy}>
             {ssoLoading ? 'Redirection…' : 'Se connecter avec SBC'}
           </button>
-
           <div className="divider mono">ou</div>
-
           <label className="field">
             <span className="mono">E-mail</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@sbcprecom.com"
-              autoComplete="email"
-            />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@sbcprecom.com" autoComplete="email" />
           </label>
           <label className="field">
             <span className="mono">Mot de passe</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
           </label>
-          <button className="btn btn-red" disabled={busy || !email.trim() || !password}>
+          <button className="btn btn-red btn-xl" style={{ marginTop: 0 }} disabled={busy || !email.trim() || !password}>
             {busy ? 'Connexion…' : 'Se connecter'}
           </button>
-
           {alreadyIn && !busy && (
-            <button
-              className="btn btn-sm session-btn"
-              type="button"
-              onClick={() => nav('/catalog')}
-            >
-              Reprendre la session
+            <button className="btn btn-sm" type="button" onClick={() => nav('/catalog')} style={{ width: '100%', marginTop: 4 }}>
+              Reprendre la session →
             </button>
           )}
           {err && <p className="err mono">{err}</p>}
-          <p className="local-account-note mono">
-            Compte e-mail : accès aux lives gratuits uniquement — utilisez « Se connecter avec SBC
-            » pour les abonnements et les fonctions créateur.
-          </p>
         </form>
 
-        <form className="panel rise d2" onSubmit={joinLive}>
-          <div className="panel-head">
-            <IconUsers />
-            <h2>Spectateur · Invité</h2>
-          </div>
-          <p className="hint">
-            Collez le lien de partage reçu (ou son code) — aucun compte nécessaire.
-          </p>
+        <div className="login-divider"><span className="mono hint">Vous avez un lien de live ?</span></div>
+
+        <form className="login-card" onSubmit={joinLive}>
           <label className="field">
             <span className="mono">Lien ou code de partage</span>
-            <input
-              value={share}
-              onChange={(e) => setShare(e.target.value)}
-              placeholder="https://live.sbcprecom.com/live/…"
-            />
+            <input value={share} onChange={e => setShare(e.target.value)} placeholder="https://live.sbcprecom.com/live/…" />
           </label>
-          <button className="btn" disabled={!parseShareCode(share)}>
-            Rejoindre le live
+          <button className="btn btn-full" disabled={!parseShareCode(share)}>
+            Rejoindre en spectateur
           </button>
         </form>
-      </main>
-
-      <footer className="home-foot mono rise d3">
-        SBC· plateforme de diffusion en direct
-      </footer>
+      </div>
     </div>
   )
 }

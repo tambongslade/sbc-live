@@ -14,7 +14,7 @@ import {
   IconVolume,
 } from '../lib/icons'
 import { createViewerRoom, useChat, useRoomTick } from '../lib/livekit'
-import { formatFcfa, type GuestEntry, type Live, type Paywall, type SubscriptionResponse, type TokenResponse } from '../lib/types'
+import { formatFcfa, type BillingCycle, type GuestEntry, type Live, type Paywall, type SubscriptionResponse, type TokenResponse } from '../lib/types'
 
 type Phase = 'loading' | 'notfound' | 'name' | 'waiting' | 'live' | 'ended' | 'paywall'
 
@@ -33,6 +33,7 @@ export default function GuestLive() {
   const [handRaised, setHandRaised] = useState(false)
   const [paywall, setPaywall] = useState<Paywall | null>(null)
   const [subscribing, setSubscribing] = useState(false)
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('MONTHLY')
   const connecting = useRef(false)
 
   useEffect(() => {
@@ -158,12 +159,13 @@ export default function GuestLive() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, live, isAuthenticated])
 
-  async function subscribe() {
+  async function subscribe(cycle: BillingCycle = billingCycle) {
     if (!paywall) return
     setSubscribing(true)
     try {
       const { checkoutUrl } = await userApi.post<SubscriptionResponse>('/subscriptions', {
         offerId: paywall.offerId,
+        billingCycle: cycle,
       })
       window.location.href = checkoutUrl
     } catch (e) {
@@ -242,14 +244,30 @@ export default function GuestLive() {
               <p className="hint">{paywall.message}</p>
               {paywall.canPurchase ? (
                 <>
+                  {paywall.billingCycles?.length > 1 ? (
+                    <div className="cycle-picker">
+                      {paywall.billingCycles.map(opt => (
+                        <button
+                          key={opt.cycle}
+                          type="button"
+                          className={`cycle-btn${billingCycle === opt.cycle ? ' cycle-btn-on' : ''}`}
+                          onClick={() => setBillingCycle(opt.cycle)}
+                        >
+                          <span className="cycle-btn-label">{opt.label}</span>
+                          <span className="cycle-btn-price">{formatFcfa(opt.priceFcfa)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   <button
                     className="btn btn-amber btn-xl"
                     disabled={subscribing}
-                    onClick={subscribe}
+                    onClick={() => subscribe(billingCycle)}
                   >
-                    {subscribing
-                      ? 'Redirection…'
-                      : `S'abonner · ${formatFcfa(paywall.monthlyPriceFcfa)}/mois`}
+                    {subscribing ? 'Redirection…' : `S'abonner · ${formatFcfa(
+                      paywall.billingCycles?.find(c => c.cycle === billingCycle)?.priceFcfa
+                      ?? paywall.monthlyPriceFcfa
+                    )}`}
                   </button>
                   {err && <p className="err mono">{err}</p>}
                 </>

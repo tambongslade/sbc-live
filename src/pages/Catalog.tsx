@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError, USER_KEY, USER_TOKEN_KEY, userApi } from '../lib/api'
-import { IconRadio, IconUser } from '../lib/icons'
-import type { AuthUser, CatalogLive, HomeResponse, SubscriptionResponse } from '../lib/types'
+import { IconHome, IconPlus, IconRadio, IconSearch, IconUser } from '../lib/icons'
+import type { AuthUser, BillingCycle, CatalogLive, HomeResponse, SubscriptionResponse } from '../lib/types'
 import { TIER_PRICES, formatFcfa } from '../lib/types'
 
 function tierBadge(tier: string | null) {
@@ -92,6 +92,7 @@ export default function Catalog() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [subscribing, setSubscribing] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   const storedUser = localStorage.getItem(USER_KEY)
   const user: AuthUser | null = storedUser ? (JSON.parse(storedUser) as AuthUser) : null
@@ -120,106 +121,93 @@ export default function Catalog() {
       .finally(() => setLoading(false))
   }, [nav])
 
-  async function subscribe(offerId: string) {
+  async function subscribe(offerId: string, billingCycle: BillingCycle = 'MONTHLY') {
     setSubscribing(offerId); setErr(null)
     try {
-      const { checkoutUrl } = await userApi.post<SubscriptionResponse>('/subscriptions', { offerId })
+      const { checkoutUrl } = await userApi.post<SubscriptionResponse>('/subscriptions', { offerId, billingCycle })
       window.location.href = checkoutUrl
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : String(e)); setSubscribing(null)
     }
   }
 
-  function logout() {
-    localStorage.removeItem(USER_TOKEN_KEY); localStorage.removeItem(USER_KEY); nav('/')
-  }
+  const q = search.toLowerCase().trim()
+  const filterLives = (list: CatalogLive[]) =>
+    q ? list.filter(l => l.title?.toLowerCase().includes(q) || l.host.displayName.toLowerCase().includes(q)) : list
+  const filteredOngoing = filterLives(ongoing)
+  const filteredScheduled = filterLives(scheduled)
 
   return (
-    <div className="sbc-home">
-
-      {/* ── Top nav ──────────────────────────────────────────── */}
-      <header className="sbc-nav">
-        <div className="sbc-nav-brand">
-          <img src="/logo/IMG_0477.PNG" alt="SBC Live" className="app-logo" />
+    <div className="app-shell">
+      <header className="app-header">
+        <img src="/logo/IMG_0477.PNG" alt="SBC Live" className="app-logo" style={{ height: 32 }} />
+        <div className="app-header-right">
+          {user && <span className="app-username">{user.displayName}</span>}
+          <Link to="/profile" className="btn btn-sm"><IconUser /></Link>
+          {canHost && <Link to="/admin" className="btn btn-sm btn-red"><IconRadio /></Link>}
         </div>
-        <nav className="sbc-nav-links">
-          {user && <span className="sbc-nav-user">{user.displayName}</span>}
-          <Link to="/profile" className="btn btn-sm"><IconUser /> Profil</Link>
-          {canHost && <Link to="/admin" className="btn btn-sm"><IconRadio /> Studio</Link>}
-          <button className="btn btn-sm" onClick={logout}>Déco</button>
-        </nav>
       </header>
 
-      {/* ── Hero ─────────────────────────────────────────────── */}
-      <div className="sbc-hero">
-        <div className="sbc-hero-inner">
-          <img src="/logo/IMG_0477.PNG" alt="SBC Live" className="app-logo app-logo-hero" />
-          <h1 className="sbc-hero-title">
-            Le réseau de <em>lives SBC</em>
-          </h1>
-          <p className="sbc-hero-sub">Rejoignez des formations, des lives trading, du coaching — en direct ou en replay.</p>
-          {canHost && (
-            <Link to="/admin" className="btn btn-red sbc-hero-cta">
-              <IconRadio /> Créer un live maintenant
-            </Link>
-          )}
+      <main className="app-body">
+        <div className="app-search">
+          <div className="mob-search-bar">
+            <IconSearch />
+            <input className="mob-search-input" placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
         </div>
-      </div>
 
-      <main className="sbc-main">
-        {err && <p className="err mono" style={{ marginBottom: 24 }}>{err}</p>}
+        {err && <p className="err mono" style={{ padding: '8px 0' }}>{err}</p>}
 
-        {/* ── EN DIRECT ──────────────────────────────────────── */}
-        <section className="sbc-section">
-          <div className="sbc-section-head">
+        <section className="app-section">
+          <div className="app-section-head">
             <span className="led led-red" />
-            <h2 className="sbc-section-title">EN DIRECT</h2>
+            <h2 className="app-section-title">EN DIRECT</h2>
+            <span className="app-section-count mono">{filteredOngoing.length}</span>
           </div>
-
-          {loading && <p className="hint mono">Chargement…</p>}
-
-          {!loading && ongoing.length === 0 && (
-            <div className="sbc-empty">
-              <p className="hint">Aucun live en cours pour le moment.</p>
-              {canHost && (
-                <Link to="/admin" className="btn btn-red" style={{ marginTop: 12 }}>
-                  <IconRadio /> Lancer un live
-                </Link>
-              )}
+          {loading && <p className="hint mono" style={{ padding: '16px 0' }}>Chargement…</p>}
+          {!loading && filteredOngoing.length === 0 && (
+            <div className="app-empty">
+              <p className="hint">{q ? 'Aucun résultat.' : 'Aucun live en cours.'}</p>
             </div>
           )}
-
-          {ongoing.length > 0 && (
-            <div className="sbc-grid">
-              {ongoing.map(live => (
-                <LiveCard key={live.id} live={live} onSubscribe={subscribe} subscribing={subscribing} />
-              ))}
+          {filteredOngoing.length > 0 && (
+            <div className="app-cards">
+              {filteredOngoing.map(live => <LiveCard key={live.id} live={live} onSubscribe={subscribe} subscribing={subscribing} />)}
             </div>
           )}
         </section>
 
-        {/* ── PROGRAMMÉS ─────────────────────────────────────── */}
-        <section className="sbc-section">
-          <div className="sbc-section-head">
+        <section className="app-section">
+          <div className="app-section-head">
             <span className="sbc-dot-orange" />
-            <h2 className="sbc-section-title">LIVES PROGRAMMÉS</h2>
+            <h2 className="app-section-title">PROGRAMMÉS</h2>
+            <span className="app-section-count mono">{filteredScheduled.length}</span>
           </div>
-
-          {!loading && scheduled.length === 0 && (
-            <div className="sbc-empty">
-              <p className="hint">Aucun live programmé pour le moment.</p>
+          {!loading && filteredScheduled.length === 0 && (
+            <div className="app-empty">
+              <p className="hint">{q ? 'Aucun résultat.' : 'Aucun live programmé.'}</p>
             </div>
           )}
-
-          {scheduled.length > 0 && (
-            <div className="sbc-grid sbc-grid-scheduled">
-              {scheduled.map(live => (
-                <LiveCard key={live.id} live={live} onSubscribe={subscribe} subscribing={subscribing} />
-              ))}
+          {filteredScheduled.length > 0 && (
+            <div className="app-cards">
+              {filteredScheduled.map(live => <LiveCard key={live.id} live={live} onSubscribe={subscribe} subscribing={subscribing} />)}
             </div>
           )}
         </section>
+
+        <div style={{ height: 16 }} />
       </main>
+
+      {canHost && <Link to="/admin" className="mob-fab" aria-label="Créer un live"><IconPlus /></Link>}
+
+      <nav className="mob-bottom-nav">
+        <Link to="/catalog" className="mob-nav-item active"><IconHome /><span>Accueil</span></Link>
+        <button className="mob-nav-item" onClick={() => document.querySelector<HTMLInputElement>('.mob-search-input')?.focus()}>
+          <IconSearch /><span>Chercher</span>
+        </button>
+        <Link to="/profile" className="mob-nav-item"><IconUser /><span>Profil</span></Link>
+        {canHost && <Link to="/admin" className="mob-nav-item"><IconRadio /><span>Studio</span></Link>}
+      </nav>
     </div>
   )
 }

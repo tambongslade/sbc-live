@@ -3,6 +3,8 @@
 export type UserRole = 'VIEWER' | 'CREATOR' | 'MODERATOR' | 'ADMIN'
 export type LiveStatus = 'SCHEDULED' | 'LIVE' | 'ENDED' | 'CANCELLED'
 export type OfferAccessMode = 'OPEN_TO_ALL' | 'FILLEUL_ONLY'
+export type Weekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
+export type BillingCycle = 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 export type LiveRole = 'host' | 'moderator' | 'speaker' | 'viewer'
 export type SbcTier = 'CLASSIQUE' | 'CIBLE' | 'RELANCE' | 'VISIBILITE_MAX' | 'TIER_15K_TBD'
 
@@ -54,12 +56,14 @@ export interface Live {
   isAdminFree: boolean
   offerId: string | null
   scheduledAt: string | null
+  scheduledEndAt: string | null
   startedAt: string | null
   endedAt: string | null
   hlsUrl: string | null
   recordingKey: string | null
   flyerUrl: string | null
   requiredSbcTier: SbcTier | null
+  maxParticipants: number | null
   hostId: string
   host: LiveHost
   createdAt: string
@@ -67,9 +71,18 @@ export interface Live {
   shareUrl?: string
 }
 
+export interface BillingCycleOption {
+  cycle: BillingCycle
+  priceFcfa: number
+  label: string
+}
+
 export interface Paywall {
   offerId: string
   monthlyPriceFcfa: number
+  weeklyPriceFcfa: number | null
+  annualPriceFcfa: number | null
+  billingCycles: BillingCycleOption[]
   accessMode: OfferAccessMode
   waiverTiers: SbcTier[]
   canPurchase: boolean
@@ -120,18 +133,45 @@ export interface AccessRule {
   createdAt: string
 }
 
+export interface CreatorLevel {
+  level: number
+  minFilleuls: number
+  maxDurationMinutes: number
+  maxParticipants: number
+  label: string
+}
+
 export interface Offer {
   id: string
   creatorId: string
   title: string | null
-  monthlyPriceFcfa: number
+  weeklyPriceFcfa: number | null
+  monthlyPriceFcfa: number | null
+  annualPriceFcfa: number | null
   accessMode: OfferAccessMode
   flyerUrl: string | null
   scheduledDates: string[]
+  frequencyPerWeek: number | null
+  weekdays: Weekday[]
+  liveStartTime: string | null
+  liveEndTime: string | null
+  timezone: string | null
   isActive: boolean
   accessRules: AccessRule[]
   createdAt: string
   updatedAt: string
+}
+
+export interface OfferOptions {
+  billingCycles: { value: BillingCycle; label: string }[]
+  tiers: { value: string; label: string; priceFcfa: number }[]
+  weekdays: { value: Weekday; label: string }[]
+  minFrequency: number
+  maxFrequency: number
+  startTimeMin: string
+  startTimeMax: string
+  flyer: { recommendedWidth: number; recommendedHeight: number; minWidth: number; minHeight: number }
+  creatorLevels: CreatorLevel[]
 }
 
 export interface SubscriptionResponse {
@@ -189,6 +229,18 @@ export function initials(name: string): string {
 export function formatFcfa(amount: number): string {
   return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
 }
+
+export const WEEKDAY_LABELS: Record<string, string> = {
+  MONDAY: 'Lundi',
+  TUESDAY: 'Mardi',
+  WEDNESDAY: 'Mercredi',
+  THURSDAY: 'Jeudi',
+  FRIDAY: 'Vendredi',
+  SATURDAY: 'Samedi',
+  SUNDAY: 'Dimanche',
+}
+
+export const ALL_WEEKDAYS: Weekday[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
 
 export const TIER_LABELS: Record<string, string> = {
   CLASSIQUE: 'Classique · 2 150 FCFA',

@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError, USER_KEY, USER_TOKEN_KEY, userApi } from '../lib/api'
 import { IconAlertTriangle, IconRadio, IconShield, IconTag, IconUser, IconX } from '../lib/icons'
-import { formatFcfa, type AuthUser, type Live, type Offer, type OfferAccessMode, type SbcTier } from '../lib/types'
+import { ALL_WEEKDAYS, WEEKDAY_LABELS, formatFcfa, type AuthUser, type Live, type Offer, type OfferAccessMode, type SbcTier, type Weekday } from '../lib/types'
+
 
 const VIEWER_TIERS: { tier: SbcTier; label: string; desc: string }[] = [
   { tier: 'CLASSIQUE', label: 'CLASSIQUE', desc: 'Membres SBC Classique' },
@@ -24,8 +25,15 @@ export default function Profile() {
   // Offer form
   const [editingOffer, setEditingOffer] = useState(false)
   const [offerTitle, setOfferTitle] = useState('')
+  const [offerWeeklyPrice, setOfferWeeklyPrice] = useState('')
   const [offerPrice, setOfferPrice] = useState('')
+  const [offerAnnualPrice, setOfferAnnualPrice] = useState('')
   const [offerMode, setOfferMode] = useState<OfferAccessMode>('OPEN_TO_ALL')
+  const [offerFreq, setOfferFreq] = useState<string>('1')
+  const [offerWeekdays, setOfferWeekdays] = useState<Weekday[]>([])
+  const [offerTime, setOfferTime] = useState('10:00')
+  const [offerEndTime, setOfferEndTime] = useState('11:00')
+  const [offerTimezone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
   const [offerBusy, setOfferBusy] = useState(false)
   const [offerErr, setOfferErr] = useState<string | null>(null)
   const [offerEligErr, setOfferEligErr] = useState<string | null>(null)
@@ -56,8 +64,14 @@ export default function Profile() {
         setOffer(off)
         if (off) {
           setOfferTitle(off.title ?? '')
-          setOfferPrice(String(off.monthlyPriceFcfa))
+          setOfferWeeklyPrice(off.weeklyPriceFcfa ? String(off.weeklyPriceFcfa) : '')
+          setOfferPrice(off.monthlyPriceFcfa ? String(off.monthlyPriceFcfa) : '')
+          setOfferAnnualPrice(off.annualPriceFcfa ? String(off.annualPriceFcfa) : '')
           setOfferMode(off.accessMode)
+          setOfferFreq(String(off.frequencyPerWeek ?? 1))
+          setOfferWeekdays(off.weekdays ?? [])
+          setOfferTime(off.liveStartTime ?? '10:00')
+          setOfferEndTime(off.liveEndTime ?? '11:00')
         }
       })
       .catch((e: unknown) => {
@@ -68,19 +82,66 @@ export default function Profile() {
 
   async function saveOffer(e: FormEvent) {
     e.preventDefault()
-    const price = parseInt(offerPrice, 10)
-    if (!price || price < 1) { setOfferErr('Prix invalide (minimum 1 FCFA).'); return }
+    const weekly = offerWeeklyPrice.trim() ? parseInt(offerWeeklyPrice, 10) : null
+    const monthly = offerPrice.trim() ? parseInt(offerPrice, 10) : null
+    const annual = offerAnnualPrice.trim() ? parseInt(offerAnnualPrice, 10) : null
+    if (!weekly && !monthly && !annual) { setOfferErr('Indiquez au moins un tarif (hebdo, mensuel ou annuel).'); return }
+    if (weekly && weekly < 1) { setOfferErr('Prix hebdomadaire invalide.'); return }
+    if (monthly && monthly < 1) { setOfferErr('Prix mensuel invalide.'); return }
+    if (annual && annual < 1) { setOfferErr('Prix annuel invalide.'); return }
+
+    const freq = parseInt(offerFreq, 10)
+    if (freq < 1 || freq > 7) { setOfferErr('La fréquence doit être entre 1 et 7 fois par semaine.'); return }
+    if (offerWeekdays.length > 0 && offerWeekdays.length !== freq) {
+      setOfferErr(`Vous avez sélectionné ${offerWeekdays.length} jour(s) mais déclaré ${freq} live(s)/semaine.`); return
+    }
+    const [hh] = offerTime.split(':').map(Number)
+    if (hh < 6 || hh >= 23) { setOfferErr('L\'heure de début doit être entre 06:00 et 23:00.'); return }
+    const [ehh, emm] = offerEndTime.split(':').map(Number)
+    const [shh, smm] = offerTime.split(':').map(Number)
+    if (ehh * 60 + emm <= shh * 60 + smm) { setOfferErr('L\'heure de fin doit être après l\'heure de début.'); return }
+
     setOfferBusy(true); setOfferErr(null); setOfferEligErr(null)
     try {
-      const body: Record<string, unknown> = { monthlyPriceFcfa: price, accessMode: offerMode }
+      const body: Record<string, unknown> = {
+        accessMode: offerMode,
+        frequencyPerWeek: freq,
+        liveStartTime: offerTime,
+        liveEndTime: offerEndTime,
+        timezone: offerTimezone,
+      }
       if (offerTitle.trim()) body.title = offerTitle.trim()
-      const saved = offer
+      if (weekly) body.weeklyPriceFcfa = weekly
+      if (monthly) body.monthlyPriceFcfa = monthly
+      if (annual) body.annualPriceFcfa = annual
+      if (offerWeekdays.length > 0) body.weekdays = offerWeekdays
+      let saved = offer
         ? await userApi.patch<Offer>(`/offers/${offer.id}`, body)
         : await userApi.post<Offer>('/offers', body)
+
+      // Auto-upload flyer if one was picked
+      if (flyerFile) {
+        setFlyerBusy(true)
+        try {
+          saved = await userApi.upload<Offer>(`/offers/${saved.id}/flyer`, flyerFile)
+          setFlyerFile(null)
+        } catch (flyerE) {
+          setFlyerErr(flyerE instanceof ApiError ? flyerE.message : String(flyerE))
+        } finally {
+          setFlyerBusy(false)
+        }
+      }
+
       setOffer(saved)
       setOfferTitle(saved.title ?? '')
-      setOfferPrice(String(saved.monthlyPriceFcfa))
+      setOfferWeeklyPrice(saved.weeklyPriceFcfa ? String(saved.weeklyPriceFcfa) : '')
+      setOfferPrice(saved.monthlyPriceFcfa ? String(saved.monthlyPriceFcfa) : '')
+      setOfferAnnualPrice(saved.annualPriceFcfa ? String(saved.annualPriceFcfa) : '')
       setOfferMode(saved.accessMode)
+      setOfferFreq(String(saved.frequencyPerWeek ?? 1))
+      setOfferWeekdays(saved.weekdays ?? [])
+      setOfferTime(saved.liveStartTime ?? '10:00')
+      setOfferEndTime(saved.liveEndTime ?? '11:00')
       setEditingOffer(false)
     } catch (err) {
       if (err instanceof ApiError && (err.status === 403 || err.status === 503)) {
@@ -89,6 +150,12 @@ export default function Profile() {
         setOfferErr(err instanceof ApiError ? err.message : String(err))
       }
     } finally { setOfferBusy(false) }
+  }
+
+  function toggleWeekday(day: Weekday) {
+    setOfferWeekdays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    )
   }
 
   async function toggleOfferActive() {
@@ -101,16 +168,6 @@ export default function Profile() {
     } finally { setOfferBusy(false) }
   }
 
-  async function uploadOfferFlyer() {
-    if (!offer || !flyerFile) return
-    setFlyerBusy(true); setFlyerErr(null)
-    try {
-      setOffer(await userApi.upload<Offer>(`/offers/${offer.id}/flyer`, flyerFile))
-      setFlyerFile(null)
-    } catch (err) {
-      setFlyerErr(err instanceof ApiError ? err.message : String(err))
-    } finally { setFlyerBusy(false) }
-  }
 
   async function addWaiverRule(tier: SbcTier) {
     if (!offer) return
@@ -191,13 +248,21 @@ export default function Profile() {
           <>
             <div className="offer-row">
               <div>
-                <p className="offer-price">
-                  {formatFcfa(offer.monthlyPriceFcfa)}
-                  <span className="hint">/mois</span>
-                </p>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                  {offer.weeklyPriceFcfa && <span className="offer-price">{formatFcfa(offer.weeklyPriceFcfa)}<span className="hint">/sem</span></span>}
+                  {offer.monthlyPriceFcfa && <span className="offer-price">{formatFcfa(offer.monthlyPriceFcfa)}<span className="hint">/mois</span></span>}
+                  {offer.annualPriceFcfa && <span className="offer-price">{formatFcfa(offer.annualPriceFcfa)}<span className="hint">/an</span></span>}
+                </div>
                 <p className="hint mono">
                   {offer.accessMode === 'FILLEUL_ONLY' ? 'Filleuls uniquement' : 'Ouvert à tous'}
                 </p>
+                {offer.frequencyPerWeek && (
+                  <p className="hint" style={{ marginTop: 4, fontSize: 12 }}>
+                    {offer.frequencyPerWeek}×/sem
+                    {offer.liveStartTime ? ` · ${offer.liveStartTime}` : ''}
+                    {offer.weekdays?.length ? ` · ${offer.weekdays.map(d => WEEKDAY_LABELS[d].slice(0, 3)).join(', ')}` : ''}
+                  </p>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <span className={`chip mono ${offer.isActive ? '' : 'chip-inactive'}`}>
@@ -257,48 +322,67 @@ export default function Profile() {
           </>
         )}
 
-        {/* Offer flyer upload (when offer exists, not editing) */}
-        {offer && !editingOffer && (
-          <div className="waiver-section">
-            <div className="waiver-header">
-              <span className="mono">FLYER DE L'OFFRE</span>
-            </div>
-            {offer.flyerUrl && (
-              <div className="flyer-preview-wrap" style={{ marginBottom: 10 }}>
-                <img src={offer.flyerUrl} alt="Flyer offre" className="flyer-preview" />
-              </div>
-            )}
-            <p className="hint">{offer.flyerUrl ? 'Remplacer le flyer' : 'Ajoutez un flyer pour votre offre (JPEG/PNG, max 5 Mo).'}</p>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+        {/* Flyer quick-replace (summary view) */}
+        {offer && !editingOffer && offer.flyerUrl && (
+          <div className="waiver-section" style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+            <img src={offer.flyerUrl} alt="Flyer" style={{ width: 72, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+            <div>
+              <p className="hint mono" style={{ marginBottom: 6 }}>FLYER</p>
               <label className="btn btn-sm" style={{ cursor: 'pointer' }}>
-                Choisir
+                {flyerBusy ? 'Envoi…' : 'Remplacer'}
                 <input type="file" accept="image/*" style={{ display: 'none' }}
-                  onChange={(e) => setFlyerFile(e.target.files?.[0] ?? null)} />
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0]
+                    if (!f || !offer) return
+                    setFlyerBusy(true); setFlyerErr(null)
+                    try { setOffer(await userApi.upload<Offer>(`/offers/${offer.id}/flyer`, f)) }
+                    catch (err) { setFlyerErr(err instanceof ApiError ? err.message : String(err)) }
+                    finally { setFlyerBusy(false) }
+                  }}
+                  disabled={flyerBusy}
+                />
               </label>
-              {flyerFile && (
-                <>
-                  <span className="hint mono">{flyerFile.name}</span>
-                  <button className="btn btn-sm btn-amber" onClick={uploadOfferFlyer} disabled={flyerBusy}>
-                    {flyerBusy ? 'Envoi…' : 'Envoyer'}
-                  </button>
-                </>
-              )}
+              {flyerErr && <p className="err mono" style={{ marginTop: 6 }}>{flyerErr}</p>}
             </div>
-            {flyerErr && <p className="err mono">{flyerErr}</p>}
           </div>
         )}
 
         {/* Offer edit/create form */}
         {editingOffer && (
           <form onSubmit={saveOffer} style={{ marginTop: 16 }}>
+
+            {/* ── Identité ─────────────────────────────────── */}
+            <p className="offer-section-label mono">IDENTITÉ</p>
             <label className="field">
               <span className="mono">Nom de l'offre (optionnel)</span>
               <input value={offerTitle} onChange={(e) => setOfferTitle(e.target.value)} placeholder="ex. Lives trading du soir" autoFocus />
             </label>
-            <label className="field">
-              <span className="mono">Prix mensuel (FCFA)</span>
-              <input type="number" min="1" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} placeholder="ex. 3000" />
-            </label>
+
+            {/* ── Tarification ─────────────────────────────── */}
+            <p className="offer-section-label mono">TARIFICATION <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— au moins un tarif requis</span></p>
+            <div className="billing-cycle-grid">
+              <label className="billing-cycle-card">
+                <span className="mono billing-cycle-label">Hebdomadaire</span>
+                <div className="billing-cycle-input-row">
+                  <input type="number" min="1" value={offerWeeklyPrice} onChange={(e) => setOfferWeeklyPrice(e.target.value)} placeholder="—" />
+                  <span className="billing-cycle-unit hint">FCFA/sem</span>
+                </div>
+              </label>
+              <label className="billing-cycle-card billing-cycle-featured">
+                <span className="mono billing-cycle-label">Mensuel</span>
+                <div className="billing-cycle-input-row">
+                  <input type="number" min="1" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} placeholder="—" />
+                  <span className="billing-cycle-unit hint">FCFA/mois</span>
+                </div>
+              </label>
+              <label className="billing-cycle-card">
+                <span className="mono billing-cycle-label">Annuel</span>
+                <div className="billing-cycle-input-row">
+                  <input type="number" min="1" value={offerAnnualPrice} onChange={(e) => setOfferAnnualPrice(e.target.value)} placeholder="—" />
+                  <span className="billing-cycle-unit hint">FCFA/an</span>
+                </div>
+              </label>
+            </div>
             <label className="field">
               <span className="mono">Mode d'accès</span>
               <select className="field-select" value={offerMode} onChange={(e) => setOfferMode(e.target.value as OfferAccessMode)}>
@@ -306,15 +390,86 @@ export default function Profile() {
                 <option value="FILLEUL_ONLY">Mes filleuls uniquement</option>
               </select>
             </label>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+
+            {/* ── Cadence hebdomadaire ─────────────────────── */}
+            <p className="offer-section-label mono">CADENCE HEBDOMADAIRE</p>
+            <div className="offer-price-row">
+              <label className="field" style={{ flex: '0 0 160px' }}>
+                <span className="mono">Lives / semaine (1–7)</span>
+                <input type="number" min="1" max="7" value={offerFreq} onChange={(e) => setOfferFreq(e.target.value)} />
+              </label>
+              <label className="field" style={{ flex: 1 }}>
+                <span className="mono">Début (06:00–23:00)</span>
+                <input type="time" min="06:00" max="23:00" value={offerTime} onChange={(e) => setOfferTime(e.target.value)} className="field-datetime" />
+              </label>
+              <label className="field" style={{ flex: 1 }}>
+                <span className="mono">Fin</span>
+                <input type="time" min="06:00" max="23:59" value={offerEndTime} onChange={(e) => setOfferEndTime(e.target.value)} className="field-datetime" />
+              </label>
+            </div>
+            <div className="field">
+              <span className="mono" style={{ display: 'block', marginBottom: 10 }}>Jours de diffusion</span>
+              <div className="weekday-grid">
+                {ALL_WEEKDAYS.map(day => (
+                  <button
+                    key={day}
+                    type="button"
+                    className={`weekday-btn${offerWeekdays.includes(day) ? ' weekday-btn-on' : ''}`}
+                    onClick={() => toggleWeekday(day)}
+                  >
+                    {WEEKDAY_LABELS[day].slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+              {offerWeekdays.length > 0 && offerWeekdays.length !== parseInt(offerFreq, 10) && (
+                <p className="field-hint">
+                  {offerWeekdays.length} jour(s) sélectionné(s) — doit correspondre à la fréquence ({offerFreq}/sem)
+                </p>
+              )}
+              <p className="hint" style={{ marginTop: 6, fontSize: 12 }}>
+                Fuseau : {offerTimezone}
+              </p>
+            </div>
+
+            {/* ── Flyer ────────────────────────────────────── */}
+            <p className="offer-section-label mono">FLYER</p>
+            <div className="flyer-drop-zone" onClick={() => document.getElementById('offer-flyer-input')?.click()}>
+              {flyerFile ? (
+                <img src={URL.createObjectURL(flyerFile)} alt="Aperçu" className="flyer-drop-preview" />
+              ) : offer?.flyerUrl ? (
+                <img src={offer.flyerUrl} alt="Flyer actuel" className="flyer-drop-preview" />
+              ) : (
+                <div className="flyer-drop-placeholder">
+                  <span className="flyer-drop-icon">🖼</span>
+                  <span className="mono">Cliquez pour choisir une image</span>
+                  <span className="hint" style={{ fontSize: 11, marginTop: 4 }}>Portrait · 1080×1350 recommandé · max 5 Mo</span>
+                </div>
+              )}
+              <input
+                id="offer-flyer-input"
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => { setFlyerFile(e.target.files?.[0] ?? null); setFlyerErr(null) }}
+              />
+            </div>
+            {flyerFile && (
+              <p className="hint mono" style={{ marginTop: 6, fontSize: 11 }}>
+                {flyerFile.name} · {(flyerFile.size / 1024 / 1024).toFixed(1)} Mo
+                <button type="button" className="btn btn-sm btn-danger" style={{ marginLeft: 10, padding: '3px 10px' }} onClick={() => setFlyerFile(null)}>✕</button>
+              </p>
+            )}
+            {flyerErr && <p className="err mono" style={{ marginTop: 6 }}>{flyerErr}</p>}
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
               <button className="btn btn-red" disabled={offerBusy}>
-                {offerBusy ? 'Enregistrement…' : offer ? 'Mettre à jour' : 'Créer'}
+                {offerBusy ? (flyerBusy ? 'Envoi du flyer…' : 'Enregistrement…') : offer ? 'Mettre à jour' : 'Créer l\'offre'}
               </button>
-              <button className="btn btn-sm" type="button" onClick={() => { setEditingOffer(false); setOfferErr(null); setOfferEligErr(null) }}>
+              <button className="btn btn-sm" type="button" onClick={() => { setEditingOffer(false); setOfferErr(null); setOfferEligErr(null); setFlyerFile(null); setFlyerErr(null) }}>
                 Annuler
               </button>
             </div>
-            {offerErr && <p className="err mono">{offerErr}</p>}
+            {offerErr && <p className="err mono" style={{ marginTop: 10 }}>{offerErr}</p>}
           </form>
         )}
       </div>

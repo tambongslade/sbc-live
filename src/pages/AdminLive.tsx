@@ -27,10 +27,12 @@ import {
   formatFcfa,
   normHand,
   normParticipant,
+  type CreatorLevel,
   type Hand,
   type Live,
   type LiveHost,
   type Offer,
+  type OfferOptions,
   type ParticipantRow,
   type SbcTier,
   type StartResponse,
@@ -74,7 +76,9 @@ export default function AdminLive() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
+  const [scheduledEndAt, setScheduledEndAt] = useState('')
   const [requiredTier, setRequiredTier] = useState<SbcTier | ''>('')
+  const [creatorLevel, setCreatorLevel] = useState<CreatorLevel | null>(null)
 
   // ── flyer upload ──────────────────────────────────────────
   const [flyerFile, setFlyerFile] = useState<File | null>(null)
@@ -111,6 +115,17 @@ export default function AdminLive() {
           nav('/')
         }
       })
+    // Fetch creator limits (public endpoint)
+    userApi.get<OfferOptions>('/offers/options')
+      .then((opts) => {
+        if (!opts.creatorLevels?.length) return
+        // Use last (highest) level as the current user's limit — backend enforces the real cap
+        const stored = localStorage.getItem(USER_KEY)
+        if (!stored) { setCreatorLevel(opts.creatorLevels[opts.creatorLevels.length - 1]); return }
+        // Show lowest level so user knows the minimum they're starting from
+        setCreatorLevel(opts.creatorLevels[0])
+      })
+      .catch(() => {}) // non-critical
   }, [nav])
 
   const fail = (e: unknown) =>
@@ -129,7 +144,10 @@ export default function AdminLive() {
     try {
       const body: Record<string, string> = { title: title.trim() || 'Live SBC' }
       if (description.trim()) body.description = description.trim()
-      if (scheduledAt) body.scheduledAt = new Date(scheduledAt).toISOString()
+      if (scheduledAt) {
+        body.scheduledAt = new Date(scheduledAt).toISOString()
+        if (scheduledEndAt) body.scheduledEndAt = new Date(scheduledEndAt).toISOString()
+      }
       if (requiredTier) body.requiredSbcTier = requiredTier
       const l = await userApi.post<Live>('/lives', body)
       setLive(l)
@@ -353,22 +371,52 @@ export default function AdminLive() {
               rows={3}
             />
           </label>
-          <label className="field">
-            <span className="mono" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <IconCalendar style={{ width: 13, height: 13 }} /> Date &amp; heure prévues (optionnel)
+          <div className="field">
+            <span className="mono" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
+              <IconCalendar style={{ width: 13, height: 13 }} /> Programmation (optionnel)
             </span>
-            <input
-              type="datetime-local"
-              className="field-datetime"
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
-            />
+            <div className="offer-price-row">
+              <label style={{ flex: 1 }}>
+                <span className="mono" style={{ display: 'block', color: 'var(--muted)', marginBottom: 6, fontSize: 11 }}>DÉBUT</span>
+                <input
+                  type="datetime-local"
+                  className="field-datetime"
+                  value={scheduledAt}
+                  onChange={(e) => { setScheduledAt(e.target.value); if (!scheduledEndAt) setScheduledEndAt(e.target.value) }}
+                />
+              </label>
+              <label style={{ flex: 1 }}>
+                <span className="mono" style={{ display: 'block', color: 'var(--muted)', marginBottom: 6, fontSize: 11 }}>
+                  FIN {scheduledAt ? <span style={{ color: 'var(--red)' }}>*</span> : '(optionnel)'}
+                </span>
+                <input
+                  type="datetime-local"
+                  className="field-datetime"
+                  value={scheduledEndAt}
+                  onChange={(e) => setScheduledEndAt(e.target.value)}
+                  min={scheduledAt || undefined}
+                />
+              </label>
+            </div>
             {scheduledAt && (
               <span className="mono field-hint">
-                Programmé pour le {fmtSchedule(new Date(scheduledAt).toISOString())}
+                {fmtSchedule(new Date(scheduledAt).toISOString())}
+                {scheduledEndAt ? ` → ${fmtSchedule(new Date(scheduledEndAt).toISOString())}` : ''}
               </span>
             )}
-          </label>
+          </div>
+
+          {/* Creator level limits */}
+          {creatorLevel && (
+            <div className="creator-limits-box">
+              <span className="mono" style={{ color: 'var(--muted)', fontSize: 11 }}>LIMITES ACTUELLES</span>
+              <div className="creator-limits-row">
+                <span className="creator-limit-item"><strong>{Math.floor(creatorLevel.maxDurationMinutes / 60)}h{creatorLevel.maxDurationMinutes % 60 ? `${creatorLevel.maxDurationMinutes % 60}` : ''}</strong><span className="hint">durée max</span></span>
+                <span className="creator-limit-item"><strong>{creatorLevel.maxParticipants}</strong><span className="hint">participants</span></span>
+                <span className="creator-limit-item"><strong>≥{creatorLevel.minFilleuls}</strong><span className="hint">filleuls requis</span></span>
+              </div>
+            </div>
+          )}
           <label className="field">
             <span className="mono" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <IconTag style={{ width: 13, height: 13 }} /> Accès requis
@@ -560,7 +608,7 @@ export default function AdminLive() {
               <div className="offer-status">
                 <span className="chip mono chip-paid">PAYANT</span>
                 <span className="hint">
-                  {formatFcfa(myOffer.monthlyPriceFcfa)}/mois
+                  {myOffer.monthlyPriceFcfa ? `${formatFcfa(myOffer.monthlyPriceFcfa)}/mois` : myOffer.weeklyPriceFcfa ? `${formatFcfa(myOffer.weeklyPriceFcfa)}/sem` : ''}
                   {myOffer.accessMode === 'FILLEUL_ONLY' && ' · filleuls uniquement'}
                 </span>
               </div>
@@ -576,10 +624,10 @@ export default function AdminLive() {
               </p>
               <div className="offer-status">
                 <span className="chip mono">VOTRE OFFRE</span>
-                <span className="hint">{formatFcfa(myOffer.monthlyPriceFcfa)}/mois</span>
+                <span className="hint">{myOffer.monthlyPriceFcfa ? `${formatFcfa(myOffer.monthlyPriceFcfa)}/mois` : myOffer.weeklyPriceFcfa ? `${formatFcfa(myOffer.weeklyPriceFcfa)}/sem` : ''}</span>
               </div>
               <button className="btn btn-amber" onClick={attachOffer} disabled={busy || !offerLoaded}>
-                Rendre payant · {formatFcfa(myOffer.monthlyPriceFcfa)}/mois
+                Rendre payant · {myOffer.monthlyPriceFcfa ? `${formatFcfa(myOffer.monthlyPriceFcfa)}/mois` : myOffer.weeklyPriceFcfa ? `${formatFcfa(myOffer.weeklyPriceFcfa)}/sem` : 'offre'}
               </button>
             </>
           ) : offerLoaded ? (
