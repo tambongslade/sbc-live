@@ -1,5 +1,57 @@
 import { Room, RoomEvent, VideoPresets } from 'livekit-client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+export interface ChatMessage {
+  id: string
+  senderName: string
+  text: string
+  ts: number
+  isLocal: boolean
+}
+
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
+
+export function useChat(room: Room, localName: string) {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const idRef = useRef(0)
+
+  useEffect(() => {
+    function onData(payload: Uint8Array, participant?: { identity: string; name?: string | null }) {
+      try {
+        const { type, text, name } = JSON.parse(decoder.decode(payload)) as {
+          type: string; text: string; name: string
+        }
+        if (type !== 'chat' || !text?.trim()) return
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `r-${Date.now()}-${idRef.current++}`,
+            senderName: name || participant?.identity || 'Anonyme',
+            text: text.trim(),
+            ts: Date.now(),
+            isLocal: false,
+          },
+        ])
+      } catch { /* ignore malformed packets */ }
+    }
+    room.on(RoomEvent.DataReceived, onData)
+    return () => { room.off(RoomEvent.DataReceived, onData) }
+  }, [room])
+
+  const send = useCallback(async (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed || room.state !== 'connected') return
+    const payload = encoder.encode(JSON.stringify({ type: 'chat', text: trimmed, name: localName }))
+    await room.localParticipant.publishData(payload, { reliable: true })
+    setMessages((prev) => [
+      ...prev,
+      { id: `l-${Date.now()}-${idRef.current++}`, senderName: localName, text: trimmed, ts: Date.now(), isLocal: true },
+    ])
+  }, [room, localName])
+
+  return { messages, send }
+}
 
 /** Host / speaker room — publishes at 720p max (server capacity is tuned for this). */
 export function createHostRoom() {

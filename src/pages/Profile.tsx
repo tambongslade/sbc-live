@@ -23,11 +23,17 @@ export default function Profile() {
 
   // Offer form
   const [editingOffer, setEditingOffer] = useState(false)
+  const [offerTitle, setOfferTitle] = useState('')
   const [offerPrice, setOfferPrice] = useState('')
   const [offerMode, setOfferMode] = useState<OfferAccessMode>('OPEN_TO_ALL')
   const [offerBusy, setOfferBusy] = useState(false)
   const [offerErr, setOfferErr] = useState<string | null>(null)
   const [offerEligErr, setOfferEligErr] = useState<string | null>(null)
+
+  // Offer flyer
+  const [flyerFile, setFlyerFile] = useState<File | null>(null)
+  const [flyerBusy, setFlyerBusy] = useState(false)
+  const [flyerErr, setFlyerErr] = useState<string | null>(null)
 
   // Waiver rules
   const [waiverBusy, setWaiverBusy] = useState<SbcTier | null>(null)
@@ -48,7 +54,11 @@ export default function Profile() {
         localStorage.setItem(USER_KEY, JSON.stringify(me))
         setLives(Array.isArray(ls) ? ls : [])
         setOffer(off)
-        if (off) { setOfferPrice(String(off.monthlyPriceFcfa)); setOfferMode(off.accessMode) }
+        if (off) {
+          setOfferTitle(off.title ?? '')
+          setOfferPrice(String(off.monthlyPriceFcfa))
+          setOfferMode(off.accessMode)
+        }
       })
       .catch((e: unknown) => {
         if (e instanceof ApiError && e.status === 401) { localStorage.removeItem(USER_TOKEN_KEY); nav('/') }
@@ -62,11 +72,13 @@ export default function Profile() {
     if (!price || price < 1) { setOfferErr('Prix invalide (minimum 1 FCFA).'); return }
     setOfferBusy(true); setOfferErr(null); setOfferEligErr(null)
     try {
-      const body = { monthlyPriceFcfa: price, accessMode: offerMode }
+      const body: Record<string, unknown> = { monthlyPriceFcfa: price, accessMode: offerMode }
+      if (offerTitle.trim()) body.title = offerTitle.trim()
       const saved = offer
         ? await userApi.patch<Offer>(`/offers/${offer.id}`, body)
         : await userApi.post<Offer>('/offers', body)
       setOffer(saved)
+      setOfferTitle(saved.title ?? '')
       setOfferPrice(String(saved.monthlyPriceFcfa))
       setOfferMode(saved.accessMode)
       setEditingOffer(false)
@@ -87,6 +99,17 @@ export default function Profile() {
     } catch (err) {
       setOfferErr(err instanceof ApiError ? err.message : String(err))
     } finally { setOfferBusy(false) }
+  }
+
+  async function uploadOfferFlyer() {
+    if (!offer || !flyerFile) return
+    setFlyerBusy(true); setFlyerErr(null)
+    try {
+      setOffer(await userApi.upload<Offer>(`/offers/${offer.id}/flyer`, flyerFile))
+      setFlyerFile(null)
+    } catch (err) {
+      setFlyerErr(err instanceof ApiError ? err.message : String(err))
+    } finally { setFlyerBusy(false) }
   }
 
   async function addWaiverRule(tier: SbcTier) {
@@ -234,12 +257,47 @@ export default function Profile() {
           </>
         )}
 
+        {/* Offer flyer upload (when offer exists, not editing) */}
+        {offer && !editingOffer && (
+          <div className="waiver-section">
+            <div className="waiver-header">
+              <span className="mono">FLYER DE L'OFFRE</span>
+            </div>
+            {offer.flyerUrl && (
+              <div className="flyer-preview-wrap" style={{ marginBottom: 10 }}>
+                <img src={offer.flyerUrl} alt="Flyer offre" className="flyer-preview" />
+              </div>
+            )}
+            <p className="hint">{offer.flyerUrl ? 'Remplacer le flyer' : 'Ajoutez un flyer pour votre offre (JPEG/PNG, max 5 Mo).'}</p>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+              <label className="btn btn-sm" style={{ cursor: 'pointer' }}>
+                Choisir
+                <input type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={(e) => setFlyerFile(e.target.files?.[0] ?? null)} />
+              </label>
+              {flyerFile && (
+                <>
+                  <span className="hint mono">{flyerFile.name}</span>
+                  <button className="btn btn-sm btn-amber" onClick={uploadOfferFlyer} disabled={flyerBusy}>
+                    {flyerBusy ? 'Envoi…' : 'Envoyer'}
+                  </button>
+                </>
+              )}
+            </div>
+            {flyerErr && <p className="err mono">{flyerErr}</p>}
+          </div>
+        )}
+
         {/* Offer edit/create form */}
         {editingOffer && (
           <form onSubmit={saveOffer} style={{ marginTop: 16 }}>
             <label className="field">
+              <span className="mono">Nom de l'offre (optionnel)</span>
+              <input value={offerTitle} onChange={(e) => setOfferTitle(e.target.value)} placeholder="ex. Lives trading du soir" autoFocus />
+            </label>
+            <label className="field">
               <span className="mono">Prix mensuel (FCFA)</span>
-              <input type="number" min="1" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} placeholder="ex. 3000" autoFocus />
+              <input type="number" min="1" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} placeholder="ex. 3000" />
             </label>
             <label className="field">
               <span className="mono">Mode d'accès</span>

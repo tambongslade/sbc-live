@@ -1,8 +1,9 @@
 import { ConnectionState } from 'livekit-client'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { ChatPanel } from '../components/ChatPanel'
 import { VideoTile } from '../components/VideoTile'
-import { ApiError, GUEST_NAME_KEY, GUEST_TOKEN_KEY, PaywallApiError, USER_TOKEN_KEY, guestApi, userApi } from '../lib/api'
+import { ApiError, GUEST_NAME_KEY, GUEST_TOKEN_KEY, PaywallApiError, USER_KEY, USER_TOKEN_KEY, guestApi, userApi } from '../lib/api'
 import {
   IconCam,
   IconCamOff,
@@ -12,7 +13,7 @@ import {
   IconUsers,
   IconVolume,
 } from '../lib/icons'
-import { createViewerRoom, useRoomTick } from '../lib/livekit'
+import { createViewerRoom, useChat, useRoomTick } from '../lib/livekit'
 import { formatFcfa, type GuestEntry, type Live, type Paywall, type SubscriptionResponse, type TokenResponse } from '../lib/types'
 
 type Phase = 'loading' | 'notfound' | 'name' | 'waiting' | 'live' | 'ended' | 'paywall'
@@ -322,6 +323,12 @@ export default function GuestLive() {
   }
 
   // phase === 'live'
+  const storedUser = localStorage.getItem(USER_KEY)
+  const viewerName = storedUser
+    ? (JSON.parse(storedUser) as { displayName: string }).displayName
+    : (localStorage.getItem(GUEST_NAME_KEY) ?? 'Spectateur')
+  const { messages: chatMessages, send: sendChat } = useChat(room, viewerName)
+
   const lp = room.localParticipant
   const canPublish = lp.permissions?.canPublish === true
   const publishing = lp.isMicrophoneEnabled || lp.isCameraEnabled
@@ -359,26 +366,30 @@ export default function GuestLive() {
         </div>
       )}
 
-      <main className="stage">
-        <div className={`tiles ${onStage.length <= 1 && !publishing ? 'tiles-solo' : ''}`}>
-          {onStage.length === 0 && !publishing && (
-            <div className="tile tile-big tile-wait">
-              <div className="tile-void">
-                <span className="mono">l'animateur arrive…</span>
+      <div className="guest-body">
+        <main className="stage">
+          <div className={`tiles ${onStage.length <= 1 && !publishing ? 'tiles-solo' : ''}`}>
+            {onStage.length === 0 && !publishing && (
+              <div className="tile tile-big tile-wait">
+                <div className="tile-void">
+                  <span className="mono">l'animateur arrive…</span>
+                </div>
               </div>
-            </div>
-          )}
-          {onStage.map((p, i) => (
-            <VideoTile
-              key={p.sid}
-              participant={p}
-              big={i === 0 && onStage.length === 1 && !publishing}
-            />
-          ))}
-          {publishing && <VideoTile participant={lp} />}
-        </div>
-        {err && <p className="err mono">{err}</p>}
-      </main>
+            )}
+            {onStage.map((p, i) => (
+              <VideoTile
+                key={p.sid}
+                participant={p}
+                big={i === 0 && onStage.length === 1 && !publishing}
+              />
+            ))}
+            {publishing && <VideoTile participant={lp} />}
+          </div>
+          {err && <p className="err mono">{err}</p>}
+        </main>
+
+        <ChatPanel messages={chatMessages} onSend={sendChat} />
+      </div>
 
       <footer className="guest-bar">
         {publishing ? (

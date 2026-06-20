@@ -1,8 +1,10 @@
 import { ConnectionState } from 'livekit-client'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ChatPanel } from '../components/ChatPanel'
 import { VideoTile } from '../components/VideoTile'
 import { ApiError, USER_KEY, USER_TOKEN_KEY, userApi } from '../lib/api'
+import { useChat } from '../lib/livekit'
 import {
   IconAlertTriangle,
   IconCalendar,
@@ -30,12 +32,20 @@ import {
   type LiveHost,
   type Offer,
   type ParticipantRow,
+  type SbcTier,
   type StartResponse,
   type TokenResponse,
 } from '../lib/types'
 
+const ACCESS_TIERS: { value: SbcTier | ''; label: string }[] = [
+  { value: '', label: 'Accès libre (tous les membres)' },
+  { value: 'CLASSIQUE', label: 'Classique — 2 150 FCFA/mois' },
+  { value: 'CIBLE', label: 'Cible — 5 000 FCFA/mois' },
+  { value: 'TIER_15K_TBD', label: 'Tier 15 000 FCFA/mois' },
+]
+
 type Phase = 'setup' | 'ready' | 'live' | 'ended'
-type SidebarTab = 'hands' | 'parts' | 'mods'
+type SidebarTab = 'chat' | 'hands' | 'parts' | 'mods'
 
 interface EligibilityError {
   status: 403 | 503
@@ -64,6 +74,12 @@ export default function AdminLive() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
+  const [requiredTier, setRequiredTier] = useState<SbcTier | ''>('')
+
+  // ── flyer upload ──────────────────────────────────────────
+  const [flyerFile, setFlyerFile] = useState<File | null>(null)
+  const [flyerBusy, setFlyerBusy] = useState(false)
+  const [flyerErr, setFlyerErr] = useState<string | null>(null)
 
   // ── ready: inline edit ────────────────────────────────────
   const [editingLive, setEditingLive] = useState(false)
@@ -71,7 +87,7 @@ export default function AdminLive() {
   const [editDesc, setEditDesc] = useState('')
 
   // ── live sidebar ──────────────────────────────────────────
-  const [tab, setTab] = useState<SidebarTab>('hands')
+  const [tab, setTab] = useState<SidebarTab>('chat')
   const [hands, setHands] = useState<Hand[]>([])
   const [parts, setParts] = useState<ParticipantRow[]>([])
   const [moderators, setModerators] = useState<LiveHost[]>([])
@@ -114,6 +130,7 @@ export default function AdminLive() {
       const body: Record<string, string> = { title: title.trim() || 'Live SBC' }
       if (description.trim()) body.description = description.trim()
       if (scheduledAt) body.scheduledAt = new Date(scheduledAt).toISOString()
+      if (requiredTier) body.requiredSbcTier = requiredTier
       const l = await userApi.post<Live>('/lives', body)
       setLive(l)
       setPhase('ready')
@@ -127,6 +144,18 @@ export default function AdminLive() {
     } finally {
       setBusy(false)
     }
+  }
+
+  async function uploadFlyer() {
+    if (!live || !flyerFile) return
+    setFlyerBusy(true); setFlyerErr(null)
+    try {
+      const updated = await userApi.upload<Live>(`/lives/${live.id}/flyer`, flyerFile)
+      setLive(updated)
+      setFlyerFile(null)
+    } catch (e) {
+      setFlyerErr(e instanceof ApiError ? e.message : String(e))
+    } finally { setFlyerBusy(false) }
   }
 
   const cancelSetupLive = (l: Live) => run(async () => {
@@ -340,6 +369,20 @@ export default function AdminLive() {
               </span>
             )}
           </label>
+          <label className="field">
+            <span className="mono" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconTag style={{ width: 13, height: 13 }} /> Accès requis
+            </span>
+            <select
+              className="field-select"
+              value={requiredTier}
+              onChange={(e) => setRequiredTier(e.target.value as SbcTier | '')}
+            >
+              {ACCESS_TIERS.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
           <button className="btn btn-red" disabled={busy}>{busy ? 'Création…' : 'Créer le live'}</button>
           {err && <p className="err mono">{err}</p>}
         </form>
@@ -470,8 +513,43 @@ export default function AdminLive() {
           )}
         </div>
 
-        {/* Offer / access gate */}
+        {/* Flyer upload */}
         <div className="panel rise d1">
+          <div className="panel-head">
+            <h2>Flyer promotionnel</h2>
+          </div>
+          {live.flyerUrl && (
+            <div className="flyer-preview-wrap">
+              <img src={live.flyerUrl} alt="Flyer" className="flyer-preview" />
+            </div>
+          )}
+          <p className="hint" style={{ marginBottom: 12 }}>
+            {live.flyerUrl ? 'Remplacez le flyer (JPEG / PNG / WebP, max 5 Mo).' : 'Ajoutez un flyer pour donner envie (JPEG / PNG / WebP, max 5 Mo).'}
+          </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label className="btn btn-sm" style={{ cursor: 'pointer' }}>
+              Choisir un fichier
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                style={{ display: 'none' }}
+                onChange={(e) => setFlyerFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            {flyerFile && (
+              <>
+                <span className="hint mono">{flyerFile.name}</span>
+                <button className="btn btn-amber btn-sm" onClick={uploadFlyer} disabled={flyerBusy}>
+                  {flyerBusy ? 'Envoi…' : 'Envoyer'}
+                </button>
+              </>
+            )}
+          </div>
+          {flyerErr && <p className="err mono">{flyerErr}</p>}
+        </div>
+
+        {/* Offer / access gate */}
+        <div className="panel rise d2">
           <div className="panel-head">
             <IconTag />
             <h2>Accès au live</h2>
@@ -534,6 +612,10 @@ export default function AdminLive() {
   }
 
   /* ── live console ────────────────────────────────────────── */
+  const storedUser = localStorage.getItem(USER_KEY)
+  const hostName = storedUser ? (JSON.parse(storedUser) as { displayName: string }).displayName : 'Hôte'
+  const { messages: chatMessages, send: sendChat } = useChat(room, hostName)
+
   const remotes = Array.from(room.remoteParticipants.values())
   const onStage = remotes.filter(
     (p) => p.trackPublications.size > 0 || p.permissions?.canPublish === true,
@@ -578,19 +660,28 @@ export default function AdminLive() {
       </main>
 
       <aside className="sidebar">
-        <div className="tabs tabs-3">
+        <div className="tabs tabs-4">
+          <button className={tab === 'chat' ? 'tab on' : 'tab'} onClick={() => setTab('chat')}>
+            Chat
+            {chatMessages.length > 0 && <b className="count">{chatMessages.length}</b>}
+          </button>
           <button className={tab === 'hands' ? 'tab on' : 'tab'} onClick={() => setTab('hands')}>
-            <IconHand /> Mains
+            <IconHand />
             {hands.length > 0 && <b className="count">{hands.length}</b>}
           </button>
           <button className={tab === 'parts' ? 'tab on' : 'tab'} onClick={() => setTab('parts')}>
-            <IconUsers /> Participants
+            <IconUsers />
           </button>
           <button className={tab === 'mods' ? 'tab on' : 'tab'} onClick={() => setTab('mods')}>
-            <IconShield /> Modérateurs
+            <IconShield />
             {moderators.length > 0 && <b className="count">{moderators.length}</b>}
           </button>
         </div>
+
+        {/* Chat tab */}
+        {tab === 'chat' && (
+          <ChatPanel messages={chatMessages} onSend={sendChat} />
+        )}
 
         {/* Hands tab */}
         {tab === 'hands' && (

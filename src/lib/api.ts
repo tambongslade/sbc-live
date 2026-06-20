@@ -32,15 +32,15 @@ function normaliseMessage(raw: unknown): string {
 }
 
 function createApi(getToken: () => string | null) {
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  async function request<T>(method: string, path: string, body?: unknown, multipart = false): Promise<T> {
+    const headers: Record<string, string> = multipart ? {} : { 'Content-Type': 'application/json' }
     const token = getToken()
     if (token) headers.Authorization = `Bearer ${token}`
 
     const res = await fetch(API_BASE + path, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : multipart ? (body as FormData) : JSON.stringify(body),
     })
 
     const text = await res.text()
@@ -70,11 +70,18 @@ function createApi(getToken: () => string | null) {
     return data as T
   }
 
+  function upload<T>(path: string, file: File, field = 'file'): Promise<T> {
+    const fd = new FormData()
+    fd.append(field, file)
+    return request<T>('POST', path, fd, true)
+  }
+
   return {
     get: <T>(path: string) => request<T>('GET', path),
     post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
     patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
     del: <T>(path: string) => request<T>('DELETE', path),
+    upload,
   }
 }
 

@@ -4,7 +4,7 @@ export type UserRole = 'VIEWER' | 'CREATOR' | 'MODERATOR' | 'ADMIN'
 export type LiveStatus = 'SCHEDULED' | 'LIVE' | 'ENDED' | 'CANCELLED'
 export type OfferAccessMode = 'OPEN_TO_ALL' | 'FILLEUL_ONLY'
 export type LiveRole = 'host' | 'moderator' | 'speaker' | 'viewer'
-export type SbcTier = 'CLASSIQUE' | 'CIBLE' | 'RELANCE' | 'VISIBILITE_MAX'
+export type SbcTier = 'CLASSIQUE' | 'CIBLE' | 'RELANCE' | 'VISIBILITE_MAX' | 'TIER_15K_TBD'
 
 export type AccessReason =
   | 'admin_free'
@@ -13,7 +13,9 @@ export type AccessReason =
   | 'subscribed'
   | 'filleul'
   | 'filleul_tier_waiver'
+  | 'tier_member'
   | 'subscription_required'
+  | 'tier_required'
   | 'filleuls_only'
   | 'offer_inactive'
 
@@ -56,6 +58,8 @@ export interface Live {
   endedAt: string | null
   hlsUrl: string | null
   recordingKey: string | null
+  flyerUrl: string | null
+  requiredSbcTier: SbcTier | null
   hostId: string
   host: LiveHost
   createdAt: string
@@ -75,11 +79,17 @@ export interface Paywall {
 export interface AccessDecision {
   granted: boolean
   reason: AccessReason
+  requiredTier?: SbcTier
   paywall?: Paywall
 }
 
 export interface CatalogLive extends Live {
   access: AccessDecision
+}
+
+export interface HomeResponse {
+  ongoing: CatalogLive[]
+  scheduled: CatalogLive[]
 }
 
 export interface StartResponse {
@@ -113,8 +123,11 @@ export interface AccessRule {
 export interface Offer {
   id: string
   creatorId: string
+  title: string | null
   monthlyPriceFcfa: number
   accessMode: OfferAccessMode
+  flyerUrl: string | null
+  scheduledDates: string[]
   isActive: boolean
   accessRules: AccessRule[]
   createdAt: string
@@ -174,5 +187,19 @@ export function initials(name: string): string {
 }
 
 export function formatFcfa(amount: number): string {
-  return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
+  return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
+}
+
+export const TIER_LABELS: Record<string, string> = {
+  CLASSIQUE: 'Classique · 2 150 FCFA',
+  CIBLE: 'Cible · 5 000 FCFA',
+  TIER_15K_TBD: 'Tier 15 000 FCFA',
+  RELANCE: 'Relance',
+  VISIBILITE_MAX: 'Visibilité Max · 50 000 FCFA',
+}
+
+export const TIER_PRICES: Record<string, string> = {
+  CLASSIQUE: '2 150',
+  CIBLE: '5 000',
+  TIER_15K_TBD: '15 000',
 }
