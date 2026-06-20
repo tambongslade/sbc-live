@@ -67,13 +67,7 @@ export default function Home() {
   return (
     <div className="page page-home">
       <header className="hero rise">
-        <div className="hero-mark">
-          <span className="led led-red" />
-          <span className="mono">DIFFUSION EN DIRECT · SBC PRECOM</span>
-        </div>
-        <h1 className="wordmark">
-          SBC<em>LIVE</em>
-        </h1>
+        <img src="/logo/IMG_0477.PNG" alt="SBC Live" className="app-logo app-logo-hero" />
         <p className="hero-sub mono">{API_BASE}</p>
       </header>
 
@@ -159,7 +153,7 @@ export default function Home() {
       </main>
 
       <footer className="home-foot mono rise d3">
-        SBC PRECOM · plateforme de diffusion en direct
+        SBC· plateforme de diffusion en direct
       </footer>
     </div>
   )

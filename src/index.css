@@ -427,15 +427,21 @@ body::after {
 }
 
 .topbrand {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 12px;
   color: var(--muted);
   text-decoration: none;
 }
 
-.topbrand:hover {
-  color: var(--txt);
+.topbrand a {
+  line-height: 0;
+}
+
+.topbrand-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 /* home */
@@ -499,6 +505,26 @@ body::after {
   .home-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── app logo ───────────────────────────────────────────────── */
+
+.app-logo {
+  height: 38px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+  padding: 3px 6px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+
+.app-logo-hero {
+  height: 72px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  margin-bottom: 20px;
 }
 
 /* ── SBC LIVE home page ─────────────────────────────────────── */

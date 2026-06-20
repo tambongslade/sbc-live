@@ -140,7 +140,7 @@ export default function Profile() {
     <div className="page page-narrow">
       {/* Nav */}
       <div className="profile-nav">
-        <Link to="/catalog" className="topbrand mono"><span className="led led-red" /> SBC LIVE</Link>
+        <Link to="/catalog"><img src="/logo/IMG_0477.PNG" alt="SBC Live" className="app-logo" /></Link>
         <Link to="/admin" className="btn btn-sm"><IconRadio /> Studio</Link>
       </div>
 

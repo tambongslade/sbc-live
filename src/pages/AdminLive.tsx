@@ -785,8 +785,11 @@ function TopBrand() {
     who = u?.displayName ?? ''
   } catch { /* ignore */ }
   return (
-    <Link to="/catalog" className="topbrand mono">
-      <span className="led led-red" /> SBC LIVE · RÉGIE{who ? ` · ${who}` : ''}
-    </Link>
+    <div className="topbrand">
+      <Link to="/catalog"><img src="/logo/IMG_0477.PNG" alt="SBC Live" className="app-logo" /></Link>
+      <span className="mono topbrand-label">
+        <span className="led led-red" /> RÉGIE{who ? ` · ${who}` : ''}
+      </span>
+    </div>
   )
 }

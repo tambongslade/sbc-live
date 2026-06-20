@@ -140,8 +140,7 @@ export default function Catalog() {
       {/* ── Top nav ──────────────────────────────────────────── */}
       <header className="sbc-nav">
         <div className="sbc-nav-brand">
-          <span className="led led-red" />
-          <span className="sbc-nav-wordmark">SBC<em>LIVE</em></span>
+          <img src="/logo/IMG_0477.PNG" alt="SBC Live" className="app-logo" />
         </div>
         <nav className="sbc-nav-links">
           {user && <span className="sbc-nav-user">{user.displayName}</span>}
@@ -154,6 +153,7 @@ export default function Catalog() {
       {/* ── Hero ─────────────────────────────────────────────── */}
       <div className="sbc-hero">
         <div className="sbc-hero-inner">
+          <img src="/logo/IMG_0477.PNG" alt="SBC Live" className="app-logo app-logo-hero" />
           <h1 className="sbc-hero-title">
             Le réseau de <em>lives SBC</em>
           </h1>
