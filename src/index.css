@@ -732,6 +732,27 @@ body {
   right: 10px;
 }
 
+.sbc-card-placeholder {
+  background: linear-gradient(135deg, #0f3d9e 0%, #1862f0 60%, #1254cc 100%);
+}
+
+.sbc-card-placeholder-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.sbc-card-placeholder-label {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.2);
+}
+
 .sbc-card-img-info {
   position: absolute;
   bottom: 0;

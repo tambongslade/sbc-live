@@ -80,42 +80,55 @@ function LiveCard({ live, onSubscribe, subscribing }: CardProps) {
           </div>
         </>
       ) : (
-        <div className="sbc-card-body">
-          <div className="sbc-card-top">
+        <>
+          {/* Placeholder image area */}
+          <div className="sbc-card-img sbc-card-placeholder">
+            <div className="sbc-card-placeholder-inner">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="2" />
+                <path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14" />
+              </svg>
+              <span className="mono sbc-card-placeholder-label">SBC LIVE</span>
+            </div>
             {live.status === 'LIVE' && (
               <span className="onair-badge"><span className="led led-red" /> EN DIRECT</span>
             )}
             {live.requiredSbcTier && tierBadge(live.requiredSbcTier)}
+            <div className="sbc-card-img-overlay" />
+            <div className="sbc-card-img-info">
+              <h3 className="sbc-card-title sbc-card-title-overlay">{live.title}</h3>
+              {live.scheduledAt && live.status === 'SCHEDULED' && (
+                <p className="sbc-card-date sbc-card-date-overlay">{fmtDate(live.scheduledAt)}</p>
+              )}
+              <p className="sbc-card-host sbc-card-host-overlay">{live.host.displayName}</p>
+            </div>
           </div>
-          <h3 className="sbc-card-title">{live.title}</h3>
-          {live.scheduledAt && live.status === 'SCHEDULED' && (
-            <p className="sbc-card-date">{fmtDate(live.scheduledAt)}</p>
-          )}
-          <p className="sbc-card-host">{live.host.displayName}</p>
-          <div className="sbc-card-cta">
-            {access.granted ? (
-              <Link to={`/live/${live.shareCode}`} className="btn btn-red btn-full">
-                {live.status === 'LIVE' ? 'Rejoindre' : 'Accéder'}
-              </Link>
-            ) : access.reason === 'tier_required' ? (
-              <p className="card-locked-msg">
-                Réservé aux abonnés <strong>{access.requiredTier ?? live.requiredSbcTier}</strong>
-              </p>
-            ) : access.paywall?.canPurchase ? (
-              <button
-                className="btn btn-amber btn-full"
-                disabled={subscribing === access.paywall.offerId}
-                onClick={() => onSubscribe(access.paywall!.offerId)}
-              >
-                {subscribing === access.paywall.offerId
-                  ? 'Redirection…'
-                  : `S'abonner · ${formatFcfa(access.paywall.monthlyPriceFcfa)}/mois`}
-              </button>
-            ) : (
-              <p className="card-locked-msg">{access.paywall?.message ?? 'Accès restreint'}</p>
-            )}
+          <div className="sbc-card-body sbc-card-body-slim">
+            <div className="sbc-card-cta">
+              {access.granted ? (
+                <Link to={`/live/${live.shareCode}`} className="btn btn-red btn-full">
+                  {live.status === 'LIVE' ? 'Rejoindre' : 'Accéder'}
+                </Link>
+              ) : access.reason === 'tier_required' ? (
+                <p className="card-locked-msg">
+                  Réservé aux abonnés <strong>{access.requiredTier ?? live.requiredSbcTier}</strong>
+                </p>
+              ) : access.paywall?.canPurchase ? (
+                <button
+                  className="btn btn-amber btn-full"
+                  disabled={subscribing === access.paywall.offerId}
+                  onClick={() => onSubscribe(access.paywall!.offerId)}
+                >
+                  {subscribing === access.paywall.offerId
+                    ? 'Redirection…'
+                    : `S'abonner · ${formatFcfa(access.paywall.monthlyPriceFcfa)}/mois`}
+                </button>
+              ) : (
+                <p className="card-locked-msg">{access.paywall?.message ?? 'Accès restreint'}</p>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
