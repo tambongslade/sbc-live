@@ -33,54 +33,90 @@ function LiveCard({ live, onSubscribe, subscribing }: CardProps) {
 
   return (
     <div className={`sbc-card ${hasFly ? 'sbc-card-flyer' : ''}`}>
-      {hasFly && (
-        <div className="sbc-card-img">
-          <img src={live.flyerUrl!} alt={live.title} />
-          <div className="sbc-card-img-overlay" />
-          {live.status === 'LIVE' && (
-            <span className="onair-badge"><span className="led led-red" /> EN DIRECT</span>
-          )}
-          {live.requiredSbcTier && tierBadge(live.requiredSbcTier)}
-        </div>
-      )}
-      <div className="sbc-card-body">
-        {!hasFly && (
+      {hasFly ? (
+        <>
+          <div className="sbc-card-img">
+            <img src={live.flyerUrl!} alt={live.title} />
+            <div className="sbc-card-img-overlay" />
+            {/* Badges */}
+            {live.status === 'LIVE' && (
+              <span className="onair-badge"><span className="led led-red" /> EN DIRECT</span>
+            )}
+            {live.requiredSbcTier && tierBadge(live.requiredSbcTier)}
+            {/* Title + host overlaid on gradient */}
+            <div className="sbc-card-img-info">
+              <h3 className="sbc-card-title sbc-card-title-overlay">{live.title}</h3>
+              {live.scheduledAt && live.status === 'SCHEDULED' && (
+                <p className="sbc-card-date sbc-card-date-overlay">{fmtDate(live.scheduledAt)}</p>
+              )}
+              <p className="sbc-card-host sbc-card-host-overlay">{live.host.displayName}</p>
+            </div>
+          </div>
+          {/* CTA below image */}
+          <div className="sbc-card-body sbc-card-body-slim">
+            <div className="sbc-card-cta">
+              {access.granted ? (
+                <Link to={`/live/${live.shareCode}`} className="btn btn-red btn-full">
+                  {live.status === 'LIVE' ? 'Rejoindre' : 'Accéder'}
+                </Link>
+              ) : access.reason === 'tier_required' ? (
+                <p className="card-locked-msg">
+                  Réservé aux abonnés <strong>{access.requiredTier ?? live.requiredSbcTier}</strong>
+                </p>
+              ) : access.paywall?.canPurchase ? (
+                <button
+                  className="btn btn-amber btn-full"
+                  disabled={subscribing === access.paywall.offerId}
+                  onClick={() => onSubscribe(access.paywall!.offerId)}
+                >
+                  {subscribing === access.paywall.offerId
+                    ? 'Redirection…'
+                    : `S'abonner · ${formatFcfa(access.paywall.monthlyPriceFcfa)}/mois`}
+                </button>
+              ) : (
+                <p className="card-locked-msg">{access.paywall?.message ?? 'Accès restreint'}</p>
+              )}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="sbc-card-body">
           <div className="sbc-card-top">
             {live.status === 'LIVE' && (
               <span className="onair-badge"><span className="led led-red" /> EN DIRECT</span>
             )}
             {live.requiredSbcTier && tierBadge(live.requiredSbcTier)}
           </div>
-        )}
-        <h3 className="sbc-card-title">{live.title}</h3>
-        {live.scheduledAt && live.status === 'SCHEDULED' && (
-          <p className="sbc-card-date">{fmtDate(live.scheduledAt)}</p>
-        )}
-        <p className="sbc-card-host">{live.host.displayName}</p>
-        <div className="sbc-card-cta">
-          {access.granted ? (
-            <Link to={`/live/${live.shareCode}`} className="btn btn-red btn-full">
-              {live.status === 'LIVE' ? 'Rejoindre' : 'Accéder'}
-            </Link>
-          ) : access.reason === 'tier_required' ? (
-            <p className="card-locked-msg">
-              Réservé aux abonnés <strong>{access.requiredTier ?? live.requiredSbcTier}</strong>
-            </p>
-          ) : access.paywall?.canPurchase ? (
-            <button
-              className="btn btn-amber btn-full"
-              disabled={subscribing === access.paywall.offerId}
-              onClick={() => onSubscribe(access.paywall!.offerId)}
-            >
-              {subscribing === access.paywall.offerId
-                ? 'Redirection…'
-                : `S'abonner · ${formatFcfa(access.paywall.monthlyPriceFcfa)}/mois`}
-            </button>
-          ) : (
-            <p className="card-locked-msg">{access.paywall?.message ?? 'Accès restreint'}</p>
+          <h3 className="sbc-card-title">{live.title}</h3>
+          {live.scheduledAt && live.status === 'SCHEDULED' && (
+            <p className="sbc-card-date">{fmtDate(live.scheduledAt)}</p>
           )}
+          <p className="sbc-card-host">{live.host.displayName}</p>
+          <div className="sbc-card-cta">
+            {access.granted ? (
+              <Link to={`/live/${live.shareCode}`} className="btn btn-red btn-full">
+                {live.status === 'LIVE' ? 'Rejoindre' : 'Accéder'}
+              </Link>
+            ) : access.reason === 'tier_required' ? (
+              <p className="card-locked-msg">
+                Réservé aux abonnés <strong>{access.requiredTier ?? live.requiredSbcTier}</strong>
+              </p>
+            ) : access.paywall?.canPurchase ? (
+              <button
+                className="btn btn-amber btn-full"
+                disabled={subscribing === access.paywall.offerId}
+                onClick={() => onSubscribe(access.paywall!.offerId)}
+              >
+                {subscribing === access.paywall.offerId
+                  ? 'Redirection…'
+                  : `S'abonner · ${formatFcfa(access.paywall.monthlyPriceFcfa)}/mois`}
+              </button>
+            ) : (
+              <p className="card-locked-msg">{access.paywall?.message ?? 'Accès restreint'}</p>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
