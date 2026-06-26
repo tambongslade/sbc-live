@@ -1643,6 +1643,12 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: none;
+}
+
+/* Hide verbose button labels on mobile to keep the bar compact */
+.btn-label {
+  display: none;
 }
 
 .timer {
@@ -2035,6 +2041,14 @@ body {
     grid-template-rows: auto 1fr;
     gap: 14px;
     padding: 14px;
+  }
+
+  .bar-title {
+    display: block;
+  }
+
+  .btn-label {
+    display: inline;
   }
 
   .guest-body {
