@@ -142,14 +142,30 @@ export default function AdminLive() {
     e.preventDefault()
     setBusy(true); setErr(null); setEligibilityError(null)
     try {
-      const body: Record<string, string> = { title: title.trim() || 'Live SBC' }
-      if (description.trim()) body.description = description.trim()
-      if (scheduledAt) {
-        body.scheduledAt = new Date(scheduledAt).toISOString()
-        if (scheduledEndAt) body.scheduledEndAt = new Date(scheduledEndAt).toISOString()
+      let l: Live
+      if (flyerFile) {
+        const fd = new FormData()
+        fd.append('title', title.trim() || 'Live SBC')
+        if (description.trim()) fd.append('description', description.trim())
+        if (scheduledAt) {
+          fd.append('scheduledAt', new Date(scheduledAt).toISOString())
+          if (scheduledEndAt) fd.append('scheduledEndAt', new Date(scheduledEndAt).toISOString())
+        }
+        if (requiredTier) fd.append('requiredSbcTier', requiredTier)
+        fd.append('file', flyerFile)
+        l = await userApi.postForm<Live>('/lives', fd)
+        setFlyerFile(null)
+      } else {
+        const body: Record<string, string> = { title: title.trim() || 'Live SBC' }
+        if (description.trim()) body.description = description.trim()
+        if (scheduledAt) {
+          body.scheduledAt = new Date(scheduledAt).toISOString()
+          if (scheduledEndAt) body.scheduledEndAt = new Date(scheduledEndAt).toISOString()
+        }
+        if (requiredTier) body.requiredSbcTier = requiredTier
+        l = await userApi.post<Live>('/lives', body)
       }
-      if (requiredTier) body.requiredSbcTier = requiredTier
-      const l = await userApi.post<Live>('/lives', body)
+
       setLive(l)
       setPhase('ready')
       userApi.get<Offer | null>('/offers/mine').then(setMyOffer).catch(() => setMyOffer(null))
@@ -431,7 +447,47 @@ export default function AdminLive() {
               ))}
             </select>
           </label>
-          <button className="btn btn-red" disabled={busy}>{busy ? 'Création…' : 'Créer le live'}</button>
+          {/* Flyer */}
+          <div className="field">
+            <span className="mono">Image / Flyer (optionnel)</span>
+            <div
+              className="flyer-drop-zone"
+              onClick={() => document.getElementById('setup-flyer-input')?.click()}
+            >
+              {flyerFile ? (
+                <img src={URL.createObjectURL(flyerFile)} alt="Aperçu" className="flyer-drop-preview" />
+              ) : (
+                <div className="flyer-drop-placeholder">
+                  <span className="flyer-drop-icon">🖼</span>
+                  <span className="mono">Cliquez pour choisir une image</span>
+                  <span className="hint" style={{ fontSize: 11, marginTop: 4 }}>Portrait · 1080×1350 recommandé · max 5 Mo</span>
+                </div>
+              )}
+              <input
+                id="setup-flyer-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                style={{ display: 'none' }}
+                onChange={(e) => { setFlyerFile(e.target.files?.[0] ?? null); setFlyerErr(null) }}
+              />
+            </div>
+            {flyerFile && (
+              <p className="hint mono" style={{ marginTop: 6, fontSize: 11 }}>
+                {flyerFile.name} · {(flyerFile.size / 1024 / 1024).toFixed(1)} Mo
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger"
+                  style={{ marginLeft: 10, padding: '3px 10px' }}
+                  onClick={() => setFlyerFile(null)}
+                >✕</button>
+              </p>
+            )}
+            {flyerErr && <p className="err mono" style={{ marginTop: 6 }}>{flyerErr}</p>}
+          </div>
+
+          <button className="btn btn-red" disabled={busy}>
+            {busy ? (flyerBusy ? 'Envoi du flyer…' : 'Création…') : 'Créer le live'}
+          </button>
           {err && <p className="err mono">{err}</p>}
         </form>
 

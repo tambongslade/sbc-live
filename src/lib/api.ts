@@ -82,6 +82,7 @@ function createApi(getToken: () => string | null) {
     patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
     del: <T>(path: string) => request<T>('DELETE', path),
     upload,
+    postForm: <T>(path: string, form: FormData) => request<T>('POST', path, form, true),
   }
 }
 
