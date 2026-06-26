@@ -70,7 +70,9 @@ export default function Filleuls() {
     }
   }
 
-  const progress = data ? Math.min(100, Math.round((data.count / data.minReferralsToHost) * 100)) : 0
+  // Use items.length as fallback when count is 0 but items exist (SBC profile vs list discrepancy)
+  const effectiveCount = data ? (data.count > 0 ? data.count : items.length) : 0
+  const progress = data ? Math.min(100, Math.round((effectiveCount / data.minReferralsToHost) * 100)) : 0
 
   const filtered = search.trim()
     ? items.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
@@ -105,16 +107,16 @@ export default function Filleuls() {
           <div style={{ marginTop: 12 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontWeight: 900, fontSize: 52, lineHeight: 1, color: 'var(--sbc)', letterSpacing: '-0.03em' }}>
-                {data.count.toLocaleString('fr-FR')}
+                {effectiveCount.toLocaleString('fr-FR')}
               </span>
-              <span className="hint" style={{ fontSize: 15 }}>filleul{data.count > 1 ? 's' : ''} direct{data.count > 1 ? 's' : ''}</span>
+              <span className="hint" style={{ fontSize: 15 }}>filleul{effectiveCount > 1 ? 's' : ''} direct{effectiveCount > 1 ? 's' : ''}</span>
             </div>
 
             <div style={{ marginTop: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span className="mono" style={{ color: 'var(--muted)' }}>SEUIL POUR HÉBERGER DES LIVES</span>
                 <span className="mono" style={{ color: data.canHostLive ? 'var(--green)' : 'var(--muted)' }}>
-                  {data.count} / {data.minReferralsToHost}
+                  {effectiveCount} / {data.minReferralsToHost}
                 </span>
               </div>
               <div style={{ height: 8, background: 'var(--line)', borderRadius: 100, overflow: 'hidden' }}>
@@ -139,7 +141,9 @@ export default function Filleuls() {
               ) : (
                 <p className="hint" style={{ marginTop: 10 }}>
                   Encore{' '}
-                  <strong style={{ color: 'var(--sbc)' }}>{data.remainingToHost.toLocaleString('fr-FR')} filleul{data.remainingToHost > 1 ? 's' : ''}</strong>
+                  <strong style={{ color: 'var(--sbc)' }}>
+                    {Math.max(0, data.minReferralsToHost - effectiveCount).toLocaleString('fr-FR')} filleul{Math.max(0, data.minReferralsToHost - effectiveCount) > 1 ? 's' : ''}
+                  </strong>
                   {' '}pour débloquer l'hébergement de lives.
                 </p>
               )}
@@ -165,7 +169,7 @@ export default function Filleuls() {
           <div className="panel-head">
             <IconUsers />
             <h2>Liste</h2>
-            {data && <span className="chip mono">{data.count.toLocaleString('fr-FR')}</span>}
+            {data && <span className="chip mono">{effectiveCount.toLocaleString('fr-FR')}</span>}
           </div>
 
           <div style={{ margin: '10px 0 4px' }}>
@@ -232,13 +236,13 @@ export default function Filleuls() {
 
           {!search && (
             <p className="hint mono" style={{ marginTop: 12, textAlign: 'center', fontSize: 11 }}>
-              {items.length.toLocaleString('fr-FR')} affiché{items.length > 1 ? 's' : ''} sur {data?.count.toLocaleString('fr-FR')}
+              {items.length.toLocaleString('fr-FR')} affiché{items.length > 1 ? 's' : ''} sur {effectiveCount.toLocaleString('fr-FR')}
             </p>
           )}
         </div>
       )}
 
-      {data?.linked && !loading && data.count === 0 && (
+      {data?.linked && !loading && effectiveCount === 0 && (
         <div className="panel rise d1">
           <p className="hint">Vous n'avez pas encore de filleuls directs.</p>
         </div>
