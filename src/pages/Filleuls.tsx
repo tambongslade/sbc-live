@@ -1,67 +1,28 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError, USER_TOKEN_KEY, userApi } from '../lib/api'
-import { IconUsers, IconUser } from '../lib/icons'
-import { initials } from '../lib/types'
-
-interface Filleul {
-  id: string
-  displayName: string
-  avatarUrl: string | null
-  sbcTier?: string | null
-  joinedAt?: string | null
-  email?: string | null
-}
+import { IconUsers, IconShield, IconRadio } from '../lib/icons'
 
 interface FilleulsResponse {
-  filleuls?: Filleul[]
-  total?: number
-  count?: number
-  data?: Filleul[]
-}
-
-const TIER_COLORS: Record<string, string> = {
-  CLASSIQUE: 'var(--muted)',
-  CIBLE: 'var(--sbc)',
-  RELANCE: 'var(--green)',
-  VISIBILITE_MAX: 'var(--orange)',
-  TIER_15K_TBD: 'var(--amber)',
-}
-
-const TIER_LABELS: Record<string, string> = {
-  CLASSIQUE: 'Classique',
-  CIBLE: 'Cible',
-  RELANCE: 'Relance',
-  VISIBILITE_MAX: 'Visibilité Max',
-  TIER_15K_TBD: '15 000',
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+  linked: boolean
+  count: number
+  items: unknown[]
+  hasHostTier: boolean
+  canHostLive: boolean
+  minReferralsToHost: number
+  remainingToHost: number
 }
 
 export default function Filleuls() {
   const nav = useNavigate()
-  const [filleuls, setFilleuls] = useState<Filleul[]>([])
-  const [total, setTotal] = useState<number | null>(null)
+  const [data, setData] = useState<FilleulsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
 
   useEffect(() => {
     if (!localStorage.getItem(USER_TOKEN_KEY)) { nav('/'); return }
-
-    userApi.get<FilleulsResponse | Filleul[]>('/users/filleuls')
-      .then((res) => {
-        if (Array.isArray(res)) {
-          setFilleuls(res)
-          setTotal(res.length)
-        } else {
-          const list = res.filleuls ?? res.data ?? []
-          setFilleuls(list)
-          setTotal(res.total ?? res.count ?? list.length)
-        }
-      })
+    userApi.get<FilleulsResponse>('/users/filleuls')
+      .then(setData)
       .catch((e: unknown) => {
         if (e instanceof ApiError && e.status === 401) { localStorage.removeItem(USER_TOKEN_KEY); nav('/'); return }
         setErr(e instanceof ApiError ? e.message : String(e))
@@ -69,12 +30,7 @@ export default function Filleuls() {
       .finally(() => setLoading(false))
   }, [nav])
 
-  const filtered = search.trim()
-    ? filleuls.filter(f =>
-        f.displayName.toLowerCase().includes(search.toLowerCase()) ||
-        (f.email ?? '').toLowerCase().includes(search.toLowerCase())
-      )
-    : filleuls
+  const progress = data ? Math.min(100, Math.round((data.count / data.minReferralsToHost) * 100)) : 0
 
   return (
     <div className="page page-narrow">
@@ -84,97 +40,83 @@ export default function Filleuls() {
         <Link to="/profile" className="btn btn-sm">← Profil</Link>
       </div>
 
-      {/* Header */}
+      {/* Header panel */}
       <div className="panel rise">
         <div className="panel-head">
           <IconUsers />
           <h2>Mes filleuls</h2>
         </div>
-        {total !== null && !loading && (
-          <p className="hint">
-            <span style={{ fontWeight: 700, color: 'var(--sbc)', fontSize: 28, lineHeight: 1 }}>{total.toLocaleString('fr-FR')}</span>
-            {' '}filleul{total > 1 ? 's' : ''} directs
-          </p>
-        )}
-        {loading && <p className="hint mono rise">Chargement…</p>}
+
+        {loading && <p className="hint mono">Chargement…</p>}
         {err && <p className="err mono">{err}</p>}
+
+        {data && !data.linked && (
+          <div className="eligibility-box" style={{ marginTop: 8 }}>
+            <span style={{ fontSize: 20 }}>🔗</span>
+            <p className="hint">Aucun compte SBC lié à ce profil. Connectez-vous via SSO pour voir vos filleuls.</p>
+          </div>
+        )}
+
+        {data && data.linked && (
+          <div style={{ marginTop: 12 }}>
+            {/* Big count */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontWeight: 900, fontSize: 52, lineHeight: 1, color: 'var(--sbc)', letterSpacing: '-0.03em' }}>
+                {data.count.toLocaleString('fr-FR')}
+              </span>
+              <span className="hint" style={{ fontSize: 15 }}>filleul{data.count > 1 ? 's' : ''} direct{data.count > 1 ? 's' : ''}</span>
+            </div>
+
+            {/* Host gate status */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span className="mono" style={{ color: 'var(--muted)' }}>SEUIL POUR HÉBERGER DES LIVES</span>
+                <span className="mono" style={{ color: data.canHostLive ? 'var(--green)' : 'var(--muted)' }}>
+                  {data.count} / {data.minReferralsToHost}
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              <div style={{ height: 8, background: 'var(--line)', borderRadius: 100, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${progress}%`,
+                  background: data.canHostLive ? 'var(--green)' : 'var(--sbc)',
+                  borderRadius: 100,
+                  transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }} />
+              </div>
+
+              {data.canHostLive ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                  <span style={{ color: 'var(--green)', fontSize: 18 }}>✓</span>
+                  <p className="hint" style={{ color: 'var(--green)', fontWeight: 600, margin: 0 }}>
+                    Vous pouvez héberger des lives.
+                  </p>
+                  <Link to="/admin" className="btn btn-sm btn-ok" style={{ marginLeft: 'auto' }}>
+                    <IconRadio /> Studio
+                  </Link>
+                </div>
+              ) : (
+                <p className="hint" style={{ marginTop: 10 }}>
+                  Encore{' '}
+                  <strong style={{ color: 'var(--sbc)' }}>{data.remainingToHost.toLocaleString('fr-FR')} filleul{data.remainingToHost > 1 ? 's' : ''}</strong>
+                  {' '}pour débloquer l'hébergement de lives.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* List */}
-      {!loading && !err && filleuls.length > 0 && (
+      {/* Tier override */}
+      {data?.hasHostTier && (
         <div className="panel rise d1">
           <div className="panel-head">
-            <IconUser />
-            <h2>Liste</h2>
+            <IconShield />
+            <h2>Accès par palier SBC</h2>
           </div>
-
-          {/* Search */}
-          <div style={{ margin: '10px 0 4px' }}>
-            <input
-              type="search"
-              placeholder="Rechercher un filleul…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg)',
-                border: '1px solid var(--line-2)',
-                color: 'var(--txt)',
-                fontFamily: 'var(--display)',
-                fontSize: 15,
-                padding: '10px 14px',
-                borderRadius: 12,
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          {filtered.length === 0 && (
-            <p className="hint mono" style={{ marginTop: 12 }}>Aucun résultat pour « {search} ».</p>
-          )}
-
-          <ul className="plain-list">
-            {filtered.map((f) => (
-              <li key={f.id} className="row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {/* Avatar */}
-                  {f.avatarUrl ? (
-                    <img
-                      src={f.avatarUrl}
-                      alt=""
-                      style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--line)' }}
-                    />
-                  ) : (
-                    <div style={{
-                      width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                      background: 'var(--sbc-light)', color: 'var(--sbc)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 700, fontSize: 13, fontFamily: 'var(--mono)',
-                      border: '2px solid var(--line)',
-                    }}>
-                      {initials(f.displayName)}
-                    </div>
-                  )}
-                  <div>
-                    <strong style={{ fontSize: 14 }}>{f.displayName}</strong>
-                    {f.email && <p className="hint" style={{ fontSize: 12, margin: 0 }}>{f.email}</p>}
-                    {f.joinedAt && <p className="hint" style={{ fontSize: 11, margin: 0 }}>Rejoint le {formatDate(f.joinedAt)}</p>}
-                  </div>
-                </div>
-                {f.sbcTier && (
-                  <span className="chip mono" style={{ color: TIER_COLORS[f.sbcTier] ?? 'var(--muted)', borderColor: TIER_COLORS[f.sbcTier] ?? 'var(--line-2)' }}>
-                    {TIER_LABELS[f.sbcTier] ?? f.sbcTier}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {!loading && !err && filleuls.length === 0 && (
-        <div className="panel rise d1">
-          <p className="hint">Vous n'avez pas encore de filleuls directs.</p>
+          <p className="hint">Votre palier SBC (VISIBILITÉ MAX ou supérieur) vous donne accès à l'hébergement de lives sans condition de filleuls.</p>
         </div>
       )}
     </div>
