@@ -36,7 +36,7 @@ function LiveCard({ live, onSubscribe, subscribing }: CardProps) {
       {hasFly ? (
         <>
           <div className="sbc-card-img">
-            <img src={live.flyerUrl!} alt={live.title} />
+            <img src={live.flyerUrl!} alt={live.title} loading="lazy" />
             <div className="sbc-card-img-overlay" />
             {/* Badges */}
             {live.status === 'LIVE' && (
@@ -134,10 +134,13 @@ function LiveCard({ live, onSubscribe, subscribing }: CardProps) {
   )
 }
 
+const PAGE_SIZE = 20
+
 export default function Catalog() {
   const nav = useNavigate()
   const [ongoing, setOngoing] = useState<CatalogLive[]>([])
   const [scheduled, setScheduled] = useState<CatalogLive[]>([])
+  const [scheduledPage, setScheduledPage] = useState(PAGE_SIZE)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [subscribing, setSubscribing] = useState<string | null>(null)
@@ -159,7 +162,6 @@ export default function Catalog() {
         if (e instanceof ApiError && e.status === 401) {
           localStorage.removeItem(USER_TOKEN_KEY); nav('/'); return
         }
-        // fallback: try the catalog endpoint
         userApi.get<CatalogLive[]>('/lives/catalog')
           .then((all) => {
             setOngoing(all.filter(l => l.status === 'LIVE'))
@@ -183,8 +185,12 @@ export default function Catalog() {
   const q = search.toLowerCase().trim()
   const filterLives = (list: CatalogLive[]) =>
     q ? list.filter(l => l.title?.toLowerCase().includes(q) || l.host.displayName.toLowerCase().includes(q)) : list
+
   const filteredOngoing = filterLives(ongoing)
   const filteredScheduled = filterLives(scheduled)
+  // When searching show all matches; otherwise slice for pagination
+  const visibleScheduled = q ? filteredScheduled : filteredScheduled.slice(0, scheduledPage)
+  const hasMoreScheduled = !q && filteredScheduled.length > scheduledPage
 
   return (
     <div className="app-shell">
@@ -201,12 +207,18 @@ export default function Catalog() {
         <div className="app-search">
           <div className="mob-search-bar">
             <IconSearch />
-            <input className="mob-search-input" placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} />
+            <input
+              className="mob-search-input"
+              placeholder="Rechercher un live ou un hôte…"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setScheduledPage(PAGE_SIZE) }}
+            />
           </div>
         </div>
 
         {err && <p className="err mono" style={{ padding: '8px 0' }}>{err}</p>}
 
+        {/* EN DIRECT — show all, usually a small number */}
         <section className="app-section">
           <div className="app-section-head">
             <span className="led led-red" />
@@ -226,6 +238,7 @@ export default function Catalog() {
           )}
         </section>
 
+        {/* PROGRAMMÉS — paginated */}
         <section className="app-section">
           <div className="app-section-head">
             <span className="sbc-dot-orange" />
@@ -237,9 +250,19 @@ export default function Catalog() {
               <p className="hint">{q ? 'Aucun résultat.' : 'Aucun live programmé.'}</p>
             </div>
           )}
-          {filteredScheduled.length > 0 && (
+          {visibleScheduled.length > 0 && (
             <div className="app-cards">
-              {filteredScheduled.map(live => <LiveCard key={live.id} live={live} onSubscribe={subscribe} subscribing={subscribing} />)}
+              {visibleScheduled.map(live => <LiveCard key={live.id} live={live} onSubscribe={subscribe} subscribing={subscribing} />)}
+            </div>
+          )}
+          {hasMoreScheduled && (
+            <div style={{ textAlign: 'center', marginTop: 20 }}>
+              <button
+                className="btn"
+                onClick={() => setScheduledPage(p => p + PAGE_SIZE)}
+              >
+                Voir plus · {filteredScheduled.length - scheduledPage} restant{filteredScheduled.length - scheduledPage > 1 ? 's' : ''}
+              </button>
             </div>
           )}
         </section>
