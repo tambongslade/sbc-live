@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError, USER_KEY, USER_TOKEN_KEY, userApi } from '../lib/api'
-import { IconAlertTriangle, IconRadio, IconShield, IconTag, IconUser, IconX } from '../lib/icons'
+import { IconAlertTriangle, IconRadio, IconShield, IconTag, IconUser, IconUsers, IconX } from '../lib/icons'
 import { ALL_WEEKDAYS, WEEKDAY_LABELS, formatFcfa, type AuthUser, type Live, type Offer, type OfferAccessMode, type SbcTier, type Weekday } from '../lib/types'
 
 
@@ -198,7 +198,10 @@ export default function Profile() {
       {/* Nav */}
       <div className="profile-nav">
         <Link to="/catalog"><img src="/logo/IMG_0477.PNG" alt="SBC Live" className="app-logo" /></Link>
-        <Link to="/admin" className="btn btn-sm"><IconRadio /> Studio</Link>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link to="/filleuls" className="btn btn-sm"><IconUsers /> Filleuls</Link>
+          <Link to="/admin" className="btn btn-sm"><IconRadio /> Studio</Link>
+        </div>
       </div>
 
       {/* ── User card ───────────────────────────────────────── */}
