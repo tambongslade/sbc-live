@@ -770,14 +770,14 @@ export default function AdminLive() {
             {chatMessages.length > 0 && <b className="count">{chatMessages.length}</b>}
           </button>
           <button className={tab === 'hands' ? 'tab on' : 'tab'} onClick={() => setTab('hands')}>
-            <IconHand />
+            <IconHand /> Mains
             {hands.length > 0 && <b className="count">{hands.length}</b>}
           </button>
           <button className={tab === 'parts' ? 'tab on' : 'tab'} onClick={() => setTab('parts')}>
-            <IconUsers />
+            <IconUsers /> Public
           </button>
           <button className={tab === 'mods' ? 'tab on' : 'tab'} onClick={() => setTab('mods')}>
-            <IconShield />
+            <IconShield /> Mods
             {moderators.length > 0 && <b className="count">{moderators.length}</b>}
           </button>
         </div>

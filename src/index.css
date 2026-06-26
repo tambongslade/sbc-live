@@ -1742,6 +1742,28 @@ body {
   text-transform: none;
 }
 
+.tile-fullscreen {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
+  color: #fff;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.tile:hover .tile-fullscreen {
+  opacity: 1;
+}
+
 .ic-off {
   color: var(--red);
 }
