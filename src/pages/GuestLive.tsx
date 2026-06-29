@@ -50,8 +50,6 @@ export default function GuestLive() {
     }
   }, [room])
 
-  // Resolve the share code. Use userApi if authenticated so the JWT is sent
-  // (needed for /lives/catalog-level access later), but the endpoint is public.
   useEffect(() => {
     let gone = false
     const api = isAuthenticated ? userApi : guestApi
@@ -60,7 +58,6 @@ export default function GuestLive() {
       .then((l) => {
         if (gone) return
         setLive(l)
-        // If authenticated, skip name entry
         if (isAuthenticated) {
           joinAuthenticated(l)
         } else {
@@ -78,7 +75,6 @@ export default function GuestLive() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareCode])
 
-  // Authenticated viewer: POST /lives/:id/token
   async function joinAuthenticated(l: Live) {
     if (connecting.current || room.state === ConnectionState.Connected) return
     connecting.current = true
@@ -91,7 +87,6 @@ export default function GuestLive() {
         setPaywall(e.paywall)
         setPhase('paywall')
       } else if (e instanceof ApiError && e.status === 409) {
-        // Live not yet running → waiting
         setPhase('waiting')
       } else {
         setErr(e instanceof ApiError ? e.message : String(e))
@@ -102,7 +97,6 @@ export default function GuestLive() {
     }
   }
 
-  // Guest entry: POST /lives/code/:shareCode/guest
   const enterGuest = useCallback(
     async (displayName: string) => {
       const entry = await guestApi.post<GuestEntry>(`/lives/code/${shareCode}/guest`, {
@@ -145,7 +139,6 @@ export default function GuestLive() {
       .finally(() => setBusy(false))
   }
 
-  // While waiting, retry every 5s
   useEffect(() => {
     if (phase !== 'waiting') return
     const i = setInterval(() => {
@@ -211,21 +204,23 @@ export default function GuestLive() {
 
   if (phase === 'loading') {
     return (
-      <div className="page page-narrow center">
-        <p className="hint mono rise">recherche du live…</p>
+      <div className="tw-center-page">
+        <p className="hint">Recherche du live…</p>
       </div>
     )
   }
 
   if (phase === 'notfound') {
     return (
-      <div className="page page-narrow center">
-        <div className="panel rise center-panel">
-          <h2 className="display">LIVE INTROUVABLE</h2>
-          {err && <p className="err mono">{err}</p>}
-          <Link to="/" className="btn">
-            Accueil
-          </Link>
+      <div className="tw-center-page">
+        <div style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '40px 32px', maxWidth: 440, width: '100%',
+          display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', textAlign: 'center',
+        }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--txt)' }}>Live introuvable</h2>
+          {err && <p className="err">{err}</p>}
+          <Link to="/" className="btn btn-primary">Accueil</Link>
         </div>
       </div>
     )
@@ -233,19 +228,23 @@ export default function GuestLive() {
 
   if (phase === 'paywall') {
     return (
-      <div className="page page-narrow center">
-        <div className="panel rise center-panel">
-          <span className="mono kicker">
-            <span className="led led-amber" /> ACCÈS RESTREINT
+      <div className="tw-center-page">
+        <div style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '40px 32px', maxWidth: 440, width: '100%',
+          display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', textAlign: 'center',
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
+            Accès restreint
           </span>
-          <h2 className="display">{live?.title ?? 'LIVE PAYANT'}</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--txt)' }}>{live?.title ?? 'Live payant'}</h2>
           {paywall ? (
             <>
               <p className="hint">{paywall.message}</p>
               {paywall.canPurchase ? (
                 <>
                   {paywall.billingCycles?.length > 1 ? (
-                    <div className="cycle-picker">
+                    <div className="cycle-picker" style={{ width: '100%' }}>
                       {paywall.billingCycles.map(opt => (
                         <button
                           key={opt.cycle}
@@ -269,18 +268,16 @@ export default function GuestLive() {
                       ?? paywall.monthlyPriceFcfa
                     )}`}
                   </button>
-                  {err && <p className="err mono">{err}</p>}
+                  {err && <p className="err">{err}</p>}
                 </>
               ) : (
-                <p className="hint mono">{paywall.message}</p>
+                <p className="hint">{paywall.message}</p>
               )}
             </>
           ) : (
             <p className="hint">Connectez-vous avec votre compte SBC pour vous abonner.</p>
           )}
-          <Link to="/" className="btn">
-            Accueil
-          </Link>
+          <Link to="/" className="btn">Accueil</Link>
         </div>
       </div>
     )
@@ -288,38 +285,55 @@ export default function GuestLive() {
 
   if (phase === 'name') {
     return (
-      <div className="page page-narrow center">
-        <form className="panel rise center-panel" onSubmit={submitName}>
-          <span className="mono kicker">
-            <span className="led led-red" /> VOUS REJOIGNEZ
-          </span>
-          <h2 className="display">{live?.title ?? 'LIVE SBC'}</h2>
-          <label className="field">
-            <span className="mono">Votre nom</span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="ex. Jean"
-              autoFocus
-            />
-          </label>
-          <button className="btn btn-red" disabled={busy || !name.trim()}>
-            Entrer
-          </button>
-          {err && <p className="err mono">{err}</p>}
-        </form>
+      <div className="tw-center-page">
+        <div style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '40px 32px', maxWidth: 440, width: '100%',
+          display: 'flex', flexDirection: 'column', gap: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="live-dot" />
+            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
+              Vous rejoignez
+            </span>
+          </div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--txt)' }}>{live?.title ?? 'Live SBC'}</h2>
+          <form onSubmit={submitName} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Votre nom</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="ex. Jean"
+                autoFocus
+              />
+            </div>
+            <button className="btn btn-primary btn-xl" style={{ marginTop: 0 }} disabled={busy || !name.trim()}>
+              Entrer
+            </button>
+            {err && <p className="err">{err}</p>}
+          </form>
+        </div>
       </div>
     )
   }
 
   if (phase === 'waiting') {
     return (
-      <div className="page page-narrow center">
-        <div className="panel rise center-panel">
-          <span className="mono kicker pulse">
-            <span className="led led-amber" /> EN ATTENTE DE L'ANIMATEUR
+      <div className="tw-center-page">
+        <div style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '40px 32px', maxWidth: 440, width: '100%',
+          display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', textAlign: 'center',
+        }}>
+          <span style={{
+            fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--amber)',
+            textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8,
+          }} className="pulse">
+            <span className="live-dot" style={{ background: 'var(--amber)', boxShadow: '0 0 8px var(--amber)' }} />
+            En attente de l'animateur
           </span>
-          <h2 className="display">{live?.title}</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--txt)' }}>{live?.title}</h2>
           <p className="hint">Le direct n'a pas encore commencé — vous entrerez automatiquement.</p>
         </div>
       </div>
@@ -328,13 +342,15 @@ export default function GuestLive() {
 
   if (phase === 'ended') {
     return (
-      <div className="page page-narrow center">
-        <div className="panel rise center-panel">
-          <h2 className="display">LIVE TERMINÉ</h2>
+      <div className="tw-center-page">
+        <div style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '40px 32px', maxWidth: 440, width: '100%',
+          display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', textAlign: 'center',
+        }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--txt)' }}>Live terminé</h2>
           <p className="hint">L'animateur a mis fin au direct. Merci d'avoir participé !</p>
-          <Link to="/" className="btn">
-            Accueil
-          </Link>
+          <Link to="/" className="btn btn-primary">Retour à l'accueil</Link>
         </div>
       </div>
     )
@@ -355,89 +371,106 @@ export default function GuestLive() {
   const audienceCount = remotes.length + 1
 
   return (
-    <div className="guest">
-      <header className="console-bar">
-        <div className="bar-left">
-          <span className="onair">
-            <span className="led led-white" /> EN DIRECT
-          </span>
-          <h1 className="bar-title">{live?.title}</h1>
-        </div>
-        <div className="bar-right">
-          <span className="mono stat">
-            <IconUsers /> {audienceCount}
-          </span>
-          {!room.canPlaybackAudio && (
-            <button className="btn btn-amber" onClick={() => room.startAudio()}>
-              <IconVolume /> Activer le son
-            </button>
-          )}
-        </div>
-      </header>
-
-      {canPublish && !publishing && (
-        <div className="banner rise">
-          <strong>Vous avez la parole !</strong>
-          <button className="btn btn-red btn-sm" onClick={goOnStage} disabled={busy}>
-            <IconMic /> Activer micro & caméra
-          </button>
-        </div>
-      )}
-
-      <div className="guest-body">
-        <main className="stage">
-          <div className={`tiles ${onStage.length <= 1 && !publishing ? 'tiles-solo' : ''}`}>
-            {onStage.length === 0 && !publishing && (
-              <div className="tile tile-big tile-wait">
-                <div className="tile-void">
-                  <span className="mono">l'animateur arrive…</span>
-                </div>
-              </div>
-            )}
-            {onStage.map((p, i) => (
-              <VideoTile
-                key={p.sid}
-                participant={p}
-                big={i === 0 && onStage.length === 1 && !publishing}
-              />
-            ))}
-            {publishing && <VideoTile participant={lp} />}
-          </div>
-          {err && <p className="err mono">{err}</p>}
-        </main>
-
-        <ChatPanel messages={chatMessages} onSend={sendChat} />
-      </div>
-
-      <footer className="guest-bar">
-        {publishing ? (
-          <>
-            <button
-              className={`btn btn-icon ${lp.isMicrophoneEnabled ? '' : 'btn-danger'}`}
-              onClick={toggleMic}
-              title="Micro"
-            >
-              {lp.isMicrophoneEnabled ? <IconMic /> : <IconMicOff />}
-            </button>
-            <button
-              className={`btn btn-icon ${lp.isCameraEnabled ? '' : 'btn-danger'}`}
-              onClick={toggleCam}
-              title="Caméra"
-            >
-              {lp.isCameraEnabled ? <IconCam /> : <IconCamOff />}
-            </button>
-            <span className="mono hint">vous êtes sur scène</span>
-          </>
-        ) : (
-          <button
-            className={`btn ${handRaised ? 'btn-amber' : ''}`}
-            onClick={raiseHand}
-            disabled={busy || handRaised}
-          >
-            <IconHand /> {handRaised ? 'Main levée — patientez' : 'Lever la main'}
+    <div className="player-shell">
+      <header className="player-topbar">
+        <Link to="/catalog" className="btn btn-sm btn-icon" style={{ flexShrink: 0 }}>←</Link>
+        <span className="onair-pill">
+          <span className="live-dot" style={{ width: 7, height: 7 }} /> EN DIRECT
+        </span>
+        <h1 style={{
+          fontSize: 15, fontWeight: 700, color: 'var(--txt)',
+          flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {live?.title}
+        </h1>
+        <span style={{ color: 'var(--muted)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <IconUsers /> {audienceCount}
+        </span>
+        {!room.canPlaybackAudio && (
+          <button className="btn btn-sm btn-amber" onClick={() => room.startAudio()}>
+            <IconVolume /> Son
           </button>
         )}
-      </footer>
+      </header>
+
+      <div className="player-body">
+        <div className="player-stage">
+          {canPublish && !publishing && (
+            <div style={{
+              background: 'rgba(24,98,240,0.15)',
+              borderBottom: '1px solid rgba(24,98,240,0.3)',
+              padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
+            }}>
+              <strong style={{ color: 'var(--txt)', fontSize: 14 }}>Vous avez la parole !</strong>
+              <button className="btn btn-primary btn-sm" onClick={goOnStage} disabled={busy}>
+                <IconMic /> Activer micro & caméra
+              </button>
+            </div>
+          )}
+
+          <div className="player-video-wrap">
+            <div className={`tiles ${onStage.length <= 1 && !publishing ? 'tiles-solo' : ''}`}>
+              {onStage.length === 0 && !publishing && (
+                <div className="tile tile-big tile-wait">
+                  <div className="tile-void">
+                    <span style={{ fontSize: 14, fontWeight: 500 }}>l'animateur arrive…</span>
+                  </div>
+                </div>
+              )}
+              {onStage.map((p, i) => (
+                <VideoTile
+                  key={p.sid}
+                  participant={p}
+                  big={i === 0 && onStage.length === 1 && !publishing}
+                />
+              ))}
+              {publishing && <VideoTile participant={lp} />}
+            </div>
+          </div>
+
+          <div className="player-info-bar">
+            <div className="player-host-info">
+              <div className="player-stream-title">{live?.title}</div>
+              <div className="player-host-name">{(live as Live & { host?: { displayName: string } })?.host?.displayName ?? 'SBC Live'}</div>
+            </div>
+          </div>
+
+          <footer className="player-footer">
+            {publishing ? (
+              <>
+                <button
+                  className={`btn btn-icon ${lp.isMicrophoneEnabled ? '' : 'btn-danger'}`}
+                  onClick={toggleMic}
+                  title="Micro"
+                >
+                  {lp.isMicrophoneEnabled ? <IconMic /> : <IconMicOff />}
+                </button>
+                <button
+                  className={`btn btn-icon ${lp.isCameraEnabled ? '' : 'btn-danger'}`}
+                  onClick={toggleCam}
+                  title="Caméra"
+                >
+                  {lp.isCameraEnabled ? <IconCam /> : <IconCamOff />}
+                </button>
+                <span style={{ color: 'var(--muted)', fontSize: 13 }}>vous êtes sur scène</span>
+              </>
+            ) : (
+              <button
+                className={`btn ${handRaised ? 'btn-amber' : ''}`}
+                onClick={raiseHand}
+                disabled={busy || handRaised}
+              >
+                <IconHand /> {handRaised ? 'Main levée — patientez' : 'Lever la main'}
+              </button>
+            )}
+            {err && <span className="err" style={{ marginLeft: 'auto' }}>{err}</span>}
+          </footer>
+        </div>
+
+        <div className="player-chat-wrap">
+          <ChatPanel messages={chatMessages} onSend={sendChat} />
+        </div>
+      </div>
     </div>
   )
 }

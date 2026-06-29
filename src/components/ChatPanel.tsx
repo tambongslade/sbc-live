@@ -7,10 +7,6 @@ interface Props {
   disabled?: boolean
 }
 
-function fmt(ts: number) {
-  return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-}
-
 export function ChatPanel({ messages, onSend, disabled }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -31,22 +27,26 @@ export function ChatPanel({ messages, onSend, disabled }: Props) {
 
   return (
     <div className="chat-panel">
-      <div className="chat-head">
-        <span className="mono">CHAT</span>
-        <span className="chat-count mono">{messages.length}</span>
+      <div className="chat-header">
+        <span className="chat-header-title">Chat</span>
+        {messages.length > 0 && (
+          <span style={{ color: 'var(--muted)', fontSize: 12 }}>{messages.length}</span>
+        )}
       </div>
 
       <div className="chat-messages">
         {messages.length === 0 && (
-          <p className="chat-empty hint mono">Soyez le premier à écrire…</p>
+          <p style={{ padding: '16px', color: 'var(--muted)', fontSize: 13, textAlign: 'center' }}>
+            Soyez le premier à écrire…
+          </p>
         )}
         {messages.map((msg) => (
-          <div key={msg.id} className={`chat-msg ${msg.isLocal ? 'chat-msg-local' : ''}`}>
-            <div className="chat-msg-meta">
-              <span className="chat-sender">{msg.senderName}</span>
-              <span className="chat-time mono">{fmt(msg.ts)}</span>
-            </div>
-            <p className="chat-text">{msg.text}</p>
+          <div key={msg.id} className="chat-msg">
+            <span className={`chat-sender${msg.isLocal ? ' chat-sender-local' : ''}`}>
+              {msg.senderName}
+            </span>
+            {' '}
+            <span className="chat-text">{msg.text}</span>
           </div>
         ))}
         <div ref={bottomRef} />
@@ -56,13 +56,13 @@ export function ChatPanel({ messages, onSend, disabled }: Props) {
         <input
           ref={inputRef}
           className="chat-input"
-          placeholder={disabled ? 'Connectez-vous pour écrire…' : 'Votre message…'}
+          placeholder={disabled ? 'Connectez-vous pour écrire…' : 'Envoyer un message'}
           disabled={disabled}
           maxLength={400}
           autoComplete="off"
         />
-        <button type="submit" className="btn btn-sm btn-red chat-send" disabled={disabled}>
-          ↵
+        <button type="submit" className="chat-send-btn" disabled={disabled}>
+          Envoyer
         </button>
       </form>
     </div>
