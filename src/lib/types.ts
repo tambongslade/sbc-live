@@ -162,6 +162,11 @@ export interface Offer {
   updatedAt: string
 }
 
+/** Offre listée publiquement dans la rubrique « Formation live » du catalogue. */
+export interface CatalogOffer extends Offer {
+  creator: { id: string; displayName: string; avatarUrl: string | null }
+}
+
 export interface OfferOptions {
   billingCycles: { value: BillingCycle; label: string }[]
   tiers: { value: string; label: string; priceFcfa: number }[]

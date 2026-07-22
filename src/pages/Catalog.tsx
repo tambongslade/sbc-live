@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { BottomNav } from '../components/BottomNav'
 import { ApiError, USER_KEY, USER_TOKEN_KEY, userApi } from '../lib/api'
 import { IconHome, IconPlus, IconRadio, IconSearch, IconUser, IconUsers } from '../lib/icons'
-import type { AuthUser, BillingCycle, CatalogLive, HomeResponse, SubscriptionResponse } from '../lib/types'
-import { TIER_PRICES, formatFcfa } from '../lib/types'
+import type { AuthUser, BillingCycle, CatalogLive, CatalogOffer, HomeResponse, SubscriptionResponse } from '../lib/types'
+import { TIER_PRICES, WEEKDAY_LABELS, formatFcfa } from '../lib/types'
 
 function tierBadge(tier: string | null) {
   if (!tier) return null
@@ -111,12 +111,81 @@ function StreamCard({ live, onSubscribe, subscribing }: CardProps) {
   )
 }
 
+type OfferCardProps = {
+  offer: CatalogOffer
+  onSubscribe: (offerId: string, cycle?: BillingCycle) => void
+  subscribing: string | null
+}
+
+function OfferCard({ offer, onSubscribe, subscribing }: OfferCardProps) {
+  const cycle =
+    offer.monthlyPriceFcfa ? { value: 'MONTHLY' as BillingCycle, price: offer.monthlyPriceFcfa, unit: '/mois' }
+    : offer.weeklyPriceFcfa ? { value: 'WEEKLY' as BillingCycle, price: offer.weeklyPriceFcfa, unit: '/sem' }
+    : offer.annualPriceFcfa ? { value: 'YEARLY' as BillingCycle, price: offer.annualPriceFcfa, unit: '/an' }
+    : null
+
+  const cadence = [
+    offer.frequencyPerWeek ? `${offer.frequencyPerWeek} live${offer.frequencyPerWeek > 1 ? 's' : ''}/sem` : null,
+    offer.weekdays?.length ? offer.weekdays.map(d => WEEKDAY_LABELS[d].slice(0, 3)).join(', ') : null,
+    offer.liveStartTime ? `à ${offer.liveStartTime}` : null,
+  ].filter(Boolean).join(' · ')
+
+  return (
+    <div className="stream-card">
+      <div className="stream-thumb-wrap">
+        {offer.flyerUrl ? (
+          <img src={offer.flyerUrl} alt={offer.title ?? 'Formation live'} className="stream-thumb" loading="lazy" />
+        ) : (
+          <div className="stream-placeholder">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+              <path d="M6 12v5c3 3 9 3 12 0v-5" />
+            </svg>
+            <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600, letterSpacing: '0.06em' }}>FORMATION</span>
+          </div>
+        )}
+        <span className="offer-badge">FORMATION</span>
+      </div>
+
+      <div className="stream-card-info">
+        <div className="stream-avatar">
+          {offer.creator.avatarUrl
+            ? <img src={offer.creator.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : offer.creator.displayName.charAt(0).toUpperCase()}
+        </div>
+        <div className="stream-meta">
+          <div className="stream-title">{offer.title ?? `Formation de ${offer.creator.displayName}`}</div>
+          <div className="stream-host">{offer.creator.displayName}</div>
+          {cadence && <div className="offer-cadence">{cadence}</div>}
+          <div style={{ marginTop: 8 }}>
+            {cycle ? (
+              <button
+                className="btn btn-amber btn-sm"
+                style={{ width: '100%', justifyContent: 'center' }}
+                disabled={subscribing === offer.id}
+                onClick={() => onSubscribe(offer.id, cycle.value)}
+              >
+                {subscribing === offer.id
+                  ? 'Redirection…'
+                  : `S'abonner · ${formatFcfa(cycle.price)}${cycle.unit}`}
+              </button>
+            ) : (
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>Tarif non communiqué</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const PAGE_SIZE = 20
 
 export default function Catalog() {
   const nav = useNavigate()
   const [ongoing, setOngoing] = useState<CatalogLive[]>([])
   const [scheduled, setScheduled] = useState<CatalogLive[]>([])
+  const [formations, setFormations] = useState<CatalogOffer[]>([])
   const [scheduledPage, setScheduledPage] = useState(PAGE_SIZE)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
@@ -147,6 +216,12 @@ export default function Catalog() {
           .catch((e2: unknown) => setErr(e2 instanceof ApiError ? e2.message : String(e2)))
       })
       .finally(() => setLoading(false))
+
+    // Rubrique « Formation live » — abonnements aux formations des créateurs.
+    // Silencieux tant que le backend n'expose pas encore GET /offers/catalog.
+    userApi.get<CatalogOffer[]>('/offers/catalog')
+      .then((os) => setFormations((Array.isArray(os) ? os : []).filter(o => o.isActive)))
+      .catch(() => setFormations([]))
   }, [nav])
 
   async function subscribe(offerId: string, billingCycle: BillingCycle = 'MONTHLY') {
@@ -165,6 +240,10 @@ export default function Catalog() {
 
   const filteredOngoing = filterLives(ongoing)
   const filteredScheduled = filterLives(scheduled)
+  const filteredFormations = q
+    ? formations.filter(o =>
+        o.title?.toLowerCase().includes(q) || o.creator.displayName.toLowerCase().includes(q))
+    : formations
   const visibleScheduled = q ? filteredScheduled : filteredScheduled.slice(0, scheduledPage)
   const hasMoreScheduled = !q && filteredScheduled.length > scheduledPage
 
@@ -268,6 +347,26 @@ export default function Catalog() {
               >
                 Voir plus · {filteredScheduled.length - scheduledPage} restant{filteredScheduled.length - scheduledPage > 1 ? 's' : ''}
               </button>
+            </div>
+          )}
+
+          {/* FORMATION LIVE */}
+          <div className="section-head">
+            <span className="sbc-dot-green" />
+            <h2 className="section-title">FORMATION LIVE</h2>
+            <span className="section-count">{filteredFormations.length}</span>
+          </div>
+
+          {!loading && filteredFormations.length === 0 && (
+            <p className="hint" style={{ padding: '8px 0' }}>
+              {q ? 'Aucun résultat.' : 'Aucune formation disponible pour le moment.'}
+            </p>
+          )}
+          {filteredFormations.length > 0 && (
+            <div className="stream-grid">
+              {filteredFormations.map(offer => (
+                <OfferCard key={offer.id} offer={offer} onSubscribe={subscribe} subscribing={subscribing} />
+              ))}
             </div>
           )}
 
