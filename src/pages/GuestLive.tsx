@@ -13,7 +13,7 @@ import {
   IconUsers,
   IconVolume,
 } from '../lib/icons'
-import { createViewerRoom, useChat, useRoomTick } from '../lib/livekit'
+import { createViewerRoom, mediaErrorMessage, useChat, useRoomTick } from '../lib/livekit'
 import { formatFcfa, type BillingCycle, type GuestEntry, type Live, type Paywall, type SubscriptionResponse, type TokenResponse } from '../lib/types'
 
 type Phase = 'loading' | 'notfound' | 'name' | 'waiting' | 'live' | 'ended' | 'paywall'
@@ -189,7 +189,7 @@ export default function GuestLive() {
       await room.localParticipant.enableCameraAndMicrophone()
       setHandRaised(false)
     } catch (e) {
-      setErr(String(e))
+      setErr(mediaErrorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -197,8 +197,10 @@ export default function GuestLive() {
 
   const toggleMic = () =>
     room.localParticipant.setMicrophoneEnabled(!room.localParticipant.isMicrophoneEnabled)
+      .catch((e: unknown) => setErr(mediaErrorMessage(e)))
   const toggleCam = () =>
     room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled)
+      .catch((e: unknown) => setErr(mediaErrorMessage(e)))
 
   /* ── renders ─────────────────────────────────────────────── */
 

@@ -1,4 +1,4 @@
-import { Room, RoomEvent, VideoPresets } from 'livekit-client'
+import { createLocalTracks, Room, RoomEvent, VideoPresets, type LocalTrack } from 'livekit-client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface ChatMessage {
@@ -51,6 +51,43 @@ export function useChat(room: Room, localName: string) {
   }, [room, localName])
 
   return { messages, send }
+}
+
+/** Actionable French message for a getUserMedia/device failure, or the raw message otherwise. */
+export function mediaErrorMessage(e: unknown): string {
+  const name = e instanceof DOMException || e instanceof Error ? e.name : ''
+  switch (name) {
+    case 'NotAllowedError':
+    case 'PermissionDeniedError':
+      return "Accès caméra/micro refusé. Autorisez la caméra et le micro dans les réglages du site (icône cadenas de la barre d'adresse), puis réessayez. Si vous avez ouvert ce lien depuis WhatsApp, Facebook ou Instagram, ouvrez-le plutôt dans Chrome ou Safari."
+    case 'NotFoundError':
+    case 'DevicesNotFoundError':
+      return 'Aucune caméra ou aucun micro détecté sur cet appareil.'
+    case 'NotReadableError':
+    case 'TrackStartError':
+      return "Caméra/micro inaccessibles : ils sont peut-être déjà utilisés par une autre application. Fermez-la puis réessayez."
+    default:
+      return e instanceof Error ? e.message : String(e)
+  }
+}
+
+/**
+ * Capture camera + mic BEFORE any server-side state change, so a permission
+ * refusal can't leave a live started with no host video. Throws an Error whose
+ * message is already user-presentable (French).
+ */
+export async function acquireCamMic(): Promise<LocalTrack[]> {
+  if (!window.isSecureContext) {
+    throw new Error('Le direct nécessite une connexion sécurisée (HTTPS).')
+  }
+  try {
+    return await createLocalTracks({
+      audio: true,
+      video: { resolution: VideoPresets.h720.resolution },
+    })
+  } catch (e) {
+    throw new Error(mediaErrorMessage(e))
+  }
 }
 
 /** Host / speaker room — publishes at 720p max (server capacity is tuned for this). */

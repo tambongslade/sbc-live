@@ -22,7 +22,7 @@ import {
   IconUsers,
   IconX,
 } from '../lib/icons'
-import { createHostRoom, useElapsed, useRoomTick } from '../lib/livekit'
+import { acquireCamMic, createHostRoom, mediaErrorMessage, useElapsed, useRoomTick } from '../lib/livekit'
 import {
   formatFcfa,
   normHand,
@@ -135,7 +135,7 @@ export default function AdminLive() {
   }, [nav])
 
   const fail = (e: unknown) =>
-    setErr(e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e))
+    setErr(e instanceof ApiError ? e.message : mediaErrorMessage(e))
 
   async function run(fn: () => Promise<void>) {
     setBusy(true); setErr(null)
@@ -237,18 +237,31 @@ export default function AdminLive() {
 
   const goLive = () => run(async () => {
     if (!live) return
-    const started = await userApi.post<StartResponse>(`/lives/${live.id}/start`)
-    if (started.live) setLive(started.live)
-    await room.connect(started.url, started.token)
-    await room.localParticipant.enableCameraAndMicrophone()
+    // Camera/mic first: if the browser refuses, nothing has been started server-side.
+    const tracks = await acquireCamMic()
+    try {
+      const started = await userApi.post<StartResponse>(`/lives/${live.id}/start`)
+      if (started.live) setLive(started.live)
+      await room.connect(started.url, started.token)
+      for (const t of tracks) await room.localParticipant.publishTrack(t)
+    } catch (e) {
+      tracks.forEach((t) => t.stop())
+      throw e
+    }
     setStartedAt(Date.now())
     setPhase('live')
   })
 
   const resumeLive = (l: Live) => run(async () => {
-    const { token: lkToken, url } = await userApi.post<TokenResponse>(`/lives/${l.id}/token`)
-    await room.connect(url, lkToken)
-    await room.localParticipant.enableCameraAndMicrophone()
+    const tracks = await acquireCamMic()
+    try {
+      const { token: lkToken, url } = await userApi.post<TokenResponse>(`/lives/${l.id}/token`)
+      await room.connect(url, lkToken)
+      for (const t of tracks) await room.localParticipant.publishTrack(t)
+    } catch (e) {
+      tracks.forEach((t) => t.stop())
+      throw e
+    }
     setLive(l)
     setStartedAt(Date.now())
     setPhase('live')
