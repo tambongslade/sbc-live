@@ -507,8 +507,11 @@ export default function Profile() {
                 {l.offerId && <span className="chip mono chip-paid">PAYANT</span>}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {(l.status === 'LIVE' || l.status === 'SCHEDULED') && (
-                  <Link to="/admin" className="btn btn-sm">Studio →</Link>
+                {l.status === 'LIVE' && (
+                  <Link to="/admin" className="btn btn-sm btn-primary">Reprendre l'antenne</Link>
+                )}
+                {l.status === 'SCHEDULED' && (
+                  <Link to="/admin" className="btn btn-sm">Ouvrir le studio</Link>
                 )}
                 {(l.status === 'SCHEDULED' || l.status === 'LIVE') && (
                   <button

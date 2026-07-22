@@ -1,5 +1,5 @@
 import { ConnectionState } from 'livekit-client'
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChatPanel } from '../components/ChatPanel'
 import { VideoTile } from '../components/VideoTile'
@@ -113,6 +113,7 @@ export default function AdminLive() {
   const [copied, setCopied] = useState(false)
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [multiCam, setMultiCam] = useState(false)
+  const autoResumed = useRef(false)
   const elapsed = useElapsed(startedAt)
 
   // Une fois en direct (permission caméra accordée), détecte les caméras multiples
@@ -124,7 +125,16 @@ export default function AdminLive() {
 
   useEffect(() => {
     userApi.get<unknown[]>('/lives/mine')
-      .then((ls) => setMyLives((Array.isArray(ls) ? ls : []) as Live[]))
+      .then((ls) => {
+        const lives = (Array.isArray(ls) ? ls : []) as Live[]
+        setMyLives(lives)
+        // Un live encore EN DIRECT → retour direct à l'antenne
+        const onAir = lives.find((l) => l.status === 'LIVE')
+        if (onAir && !autoResumed.current) {
+          autoResumed.current = true
+          resumeLive(onAir)
+        }
+      })
       .catch((e: unknown) => {
         if (e instanceof ApiError && e.status === 401) {
           localStorage.removeItem(USER_TOKEN_KEY)
@@ -139,6 +149,7 @@ export default function AdminLive() {
         setCreatorLevel(opts.creatorLevels[0])
       })
       .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav])
 
   const fail = (e: unknown) =>
@@ -262,7 +273,19 @@ export default function AdminLive() {
   const resumeLive = (l: Live) => run(async () => {
     const tracks = await acquireCamMic()
     try {
-      const { token: lkToken, url } = await userApi.post<TokenResponse>(`/lives/${l.id}/token`)
+      let lkToken: string
+      let url: string
+      if (l.status === 'SCHEDULED') {
+        // Un live programmé passe directement à l'antenne
+        const started = await userApi.post<StartResponse>(`/lives/${l.id}/start`)
+        if (started.live) l = started.live
+        lkToken = started.token
+        url = started.url
+      } else {
+        const t = await userApi.post<TokenResponse>(`/lives/${l.id}/token`)
+        lkToken = t.token
+        url = t.url
+      }
       await room.connect(url, lkToken)
       for (const t of tracks) await room.localParticipant.publishTrack(t)
     } catch (e) {
@@ -393,6 +416,43 @@ export default function AdminLive() {
       <div style={{ minHeight: '100%', background: 'var(--bg)', padding: '0 0 80px' }}>
         <StudioTopbar hostName={hostName} />
         <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {resumable.length > 0 && (
+            <CardPanel>
+              <h2 style={{ fontWeight: 700, fontSize: 17, color: 'var(--txt)', marginBottom: 12 }}>Mes lives en cours</h2>
+              <ul className="plain-list">
+                {resumable.map((l) => (
+                  <li key={l.id} className="row">
+                    <div className="row-info">
+                      <strong style={{ color: 'var(--txt)' }}>{l.title}</strong>
+                      <span className={`chip ${l.status === 'LIVE' ? 'chip-live' : 'chip-scheduled'}`}>
+                        {l.status === 'LIVE' ? 'EN DIRECT' : 'PROGRAMMÉ'}
+                      </span>
+                      {l.scheduledAt && l.status === 'SCHEDULED' && (
+                        <span className="hint row-date">{fmtSchedule(l.scheduledAt)}</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => resumeLive(l)}>
+                        {l.status === 'LIVE' ? "Reprendre l'antenne" : "Passer à l'antenne"}
+                      </button>
+                      {l.status === 'SCHEDULED' && (
+                        <button
+                          className="btn btn-sm btn-danger"
+                          disabled={busy}
+                          onClick={() => cancelSetupLive(l)}
+                          title="Annuler ce live"
+                        >
+                          <IconTrash />
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {err && <p className="err">{err}</p>}
+            </CardPanel>
+          )}
 
           <CardPanel>
             <h2 style={{ fontWeight: 700, fontSize: 18, color: 'var(--txt)', marginBottom: 16 }}>Nouvelle émission</h2>
@@ -526,41 +586,6 @@ export default function AdminLive() {
             </form>
           </CardPanel>
 
-          {resumable.length > 0 && (
-            <CardPanel>
-              <h2 style={{ fontWeight: 700, fontSize: 17, color: 'var(--txt)', marginBottom: 12 }}>Mes lives en cours</h2>
-              <ul className="plain-list">
-                {resumable.map((l) => (
-                  <li key={l.id} className="row">
-                    <div className="row-info">
-                      <strong style={{ color: 'var(--txt)' }}>{l.title}</strong>
-                      <span className={`chip ${l.status === 'LIVE' ? 'chip-live' : 'chip-scheduled'}`}>
-                        {l.status === 'LIVE' ? 'EN DIRECT' : 'PROGRAMMÉ'}
-                      </span>
-                      {l.scheduledAt && l.status === 'SCHEDULED' && (
-                        <span className="hint row-date">{fmtSchedule(l.scheduledAt)}</span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => resumeLive(l)}>
-                        Rejoindre
-                      </button>
-                      {l.status === 'SCHEDULED' && (
-                        <button
-                          className="btn btn-sm btn-danger"
-                          disabled={busy}
-                          onClick={() => cancelSetupLive(l)}
-                          title="Annuler ce live"
-                        >
-                          <IconTrash />
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardPanel>
-          )}
         </div>
       </div>
     )
