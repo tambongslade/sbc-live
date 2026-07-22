@@ -1044,6 +1044,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   background: #000;
   overflow: hidden;
 }
@@ -1120,9 +1121,33 @@ body {
   border-left: 1px solid var(--border);
 }
 
+/* Mobile : vidéo en haut, chat en dessous (plein écran restant) */
 @media (max-width: 767px) {
-  .player-chat-wrap {
+  .player-body {
+    flex-direction: column;
+  }
+
+  .player-stage {
+    flex: none;
+  }
+
+  .player-video-wrap {
+    flex: none;
+    aspect-ratio: 16 / 9;
+    max-height: 42dvh;
+  }
+
+  /* le titre est déjà dans la barre du haut — on garde la place pour le chat */
+  .player-info-bar {
     display: none;
+  }
+
+  .player-chat-wrap {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
 }
 
@@ -1142,6 +1167,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--bg);
   color: var(--txt);
@@ -1190,9 +1216,28 @@ body {
   }
 }
 
+/* Mobile : scène compacte en haut, régie (chat, mains, public, mods)
+   en dessous sur toute la largeur */
 @media (max-width: 600px) {
+  .console-body {
+    flex-direction: column;
+  }
+
+  .console-stage {
+    flex: none;
+    height: 34dvh;
+  }
+
+  .console-stage .tiles {
+    overflow-y: auto;
+  }
+
   .console-sidebar {
-    display: none;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
 }
 
@@ -1311,6 +1356,14 @@ body {
   flex-shrink: 0;
   padding: 8px 12px;
   border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .chat-input {
@@ -1335,12 +1388,12 @@ body {
 }
 
 .chat-send-btn {
-  margin-top: 8px;
-  width: 100%;
+  flex-shrink: 0;
+  width: auto;
+  padding: 9px 16px;
   background: var(--accent);
   color: #fff;
   border: none;
-  padding: 9px;
   border-radius: 999px;
   font-weight: 700;
   font-family: 'Montserrat', sans-serif;
