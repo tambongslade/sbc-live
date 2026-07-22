@@ -13,6 +13,7 @@ import {
   Radio,
   Search,
   Shield,
+  SwitchCamera,
   Tag,
   Trash2,
   TriangleAlert,
@@ -50,4 +51,5 @@ export const IconCalendar = wrap(Calendar)
 export const IconTrash = wrap(Trash2)
 export const IconSearch = wrap(Search)
 export const IconHome = wrap(House)
+export const IconSwitchCam = wrap(SwitchCamera)
 export const IconPlus = wrap(Plus)

@@ -90,6 +90,25 @@ export async function acquireCamMic(): Promise<LocalTrack[]> {
   }
 }
 
+/** Cycle to the next available camera (front/back on phones, next webcam on desktop). */
+export async function switchCamera(room: Room): Promise<void> {
+  const devices = await Room.getLocalDevices('videoinput')
+  if (devices.length < 2) return
+  const current = room.getActiveDevice('videoinput')
+  const idx = devices.findIndex((d) => d.deviceId === current)
+  const next = devices[(idx + 1) % devices.length]
+  await room.switchActiveDevice('videoinput', next.deviceId)
+}
+
+/** True when the device exposes more than one camera. */
+export async function hasMultipleCameras(): Promise<boolean> {
+  try {
+    return (await Room.getLocalDevices('videoinput')).length > 1
+  } catch {
+    return false
+  }
+}
+
 /** Host / speaker room — publishes at 720p max (server capacity is tuned for this). */
 export function createHostRoom() {
   return new Room({

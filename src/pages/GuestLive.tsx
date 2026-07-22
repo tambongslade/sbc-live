@@ -10,10 +10,11 @@ import {
   IconHand,
   IconMic,
   IconMicOff,
+  IconSwitchCam,
   IconUsers,
   IconVolume,
 } from '../lib/icons'
-import { createViewerRoom, mediaErrorMessage, useChat, useRoomTick } from '../lib/livekit'
+import { createViewerRoom, hasMultipleCameras, mediaErrorMessage, switchCamera, useChat, useRoomTick } from '../lib/livekit'
 import { formatFcfa, type BillingCycle, type GuestEntry, type Live, type Paywall, type SubscriptionResponse, type TokenResponse } from '../lib/types'
 
 type Phase = 'loading' | 'notfound' | 'name' | 'waiting' | 'live' | 'ended' | 'paywall'
@@ -31,6 +32,7 @@ export default function GuestLive() {
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [handRaised, setHandRaised] = useState(false)
+  const [multiCam, setMultiCam] = useState(false)
   const [paywall, setPaywall] = useState<Paywall | null>(null)
   const [subscribing, setSubscribing] = useState(false)
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('MONTHLY')
@@ -188,6 +190,7 @@ export default function GuestLive() {
     try {
       await room.localParticipant.enableCameraAndMicrophone()
       setHandRaised(false)
+      hasMultipleCameras().then(setMultiCam)
     } catch (e) {
       setErr(mediaErrorMessage(e))
     } finally {
@@ -454,6 +457,15 @@ export default function GuestLive() {
                 >
                   {lp.isCameraEnabled ? <IconCam /> : <IconCamOff />}
                 </button>
+                {multiCam && lp.isCameraEnabled && (
+                  <button
+                    className="btn btn-icon"
+                    onClick={() => switchCamera(room).catch((e: unknown) => setErr(mediaErrorMessage(e)))}
+                    title="Changer de caméra"
+                  >
+                    <IconSwitchCam />
+                  </button>
+                )}
                 <span style={{ color: 'var(--muted)', fontSize: 13 }}>vous êtes sur scène</span>
               </>
             ) : (

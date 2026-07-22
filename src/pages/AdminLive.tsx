@@ -10,6 +10,7 @@ import {
   IconCalendar,
   IconCam,
   IconCamOff,
+  IconSwitchCam,
   IconCheck,
   IconCopy,
   IconEdit,
@@ -22,7 +23,7 @@ import {
   IconUsers,
   IconX,
 } from '../lib/icons'
-import { acquireCamMic, createHostRoom, mediaErrorMessage, useElapsed, useRoomTick } from '../lib/livekit'
+import { acquireCamMic, createHostRoom, hasMultipleCameras, mediaErrorMessage, switchCamera, useElapsed, useRoomTick } from '../lib/livekit'
 import {
   formatFcfa,
   normHand,
@@ -111,7 +112,13 @@ export default function AdminLive() {
   const [eligibilityError, setEligibilityError] = useState<EligibilityError | null>(null)
   const [copied, setCopied] = useState(false)
   const [startedAt, setStartedAt] = useState<number | null>(null)
+  const [multiCam, setMultiCam] = useState(false)
   const elapsed = useElapsed(startedAt)
+
+  // Une fois en direct (permission caméra accordée), détecte les caméras multiples
+  useEffect(() => {
+    if (phase === 'live') hasMultipleCameras().then(setMultiCam)
+  }, [phase])
 
   useEffect(() => { return () => { room.disconnect() } }, [room])
 
@@ -329,6 +336,7 @@ export default function AdminLive() {
   const toggleCam = () => run(async () => {
     await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled)
   })
+  const flipCam = () => run(() => switchCamera(room))
 
   async function copyShare() {
     if (!live?.shareUrl) return
@@ -771,6 +779,11 @@ export default function AdminLive() {
         <button className={`btn btn-icon btn-sm ${camOn ? '' : 'btn-danger'}`} onClick={toggleCam} title="Caméra">
           {camOn ? <IconCam /> : <IconCamOff />}
         </button>
+        {multiCam && camOn && (
+          <button className="btn btn-icon btn-sm" onClick={flipCam} title="Changer de caméra">
+            <IconSwitchCam />
+          </button>
+        )}
         <button className="btn btn-sm" onClick={muteAll} disabled={busy} title="Couper tous les micros">
           <IconMicOff /> <span className="btn-label">Silence</span>
         </button>
