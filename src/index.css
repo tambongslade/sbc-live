@@ -1252,6 +1252,16 @@ body {
 /* Mobile : scène compacte en haut, régie (chat, mains, public, mods)
    en dessous sur toute la largeur */
 @media (max-width: 600px) {
+  /* la barre passe sur deux lignes pour que tous les contrôles
+     (micro, caméra, changer de caméra, Terminer) restent visibles */
+  .console-topbar {
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    row-gap: 8px;
+  }
+
   .console-body {
     flex-direction: column;
   }
