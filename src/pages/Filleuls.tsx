@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { BottomNav } from '../components/BottomNav'
 import { ApiError, USER_TOKEN_KEY, userApi } from '../lib/api'
 import { IconUsers, IconShield, IconRadio } from '../lib/icons'
 import { initials } from '../lib/types'
@@ -247,6 +248,8 @@ export default function Filleuls() {
           <p className="hint">Vous n'avez pas encore de filleuls directs.</p>
         </div>
       )}
+
+      <BottomNav active="filleuls" />
     </div>
   )
 }

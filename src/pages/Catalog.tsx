@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { BottomNav } from '../components/BottomNav'
 import { ApiError, USER_KEY, USER_TOKEN_KEY, userApi } from '../lib/api'
-import { IconHome, IconPlus, IconRadio, IconSearch, IconUser } from '../lib/icons'
+import { IconHome, IconPlus, IconRadio, IconSearch, IconUser, IconUsers } from '../lib/icons'
 import type { AuthUser, BillingCycle, CatalogLive, HomeResponse, SubscriptionResponse } from '../lib/types'
 import { TIER_PRICES, formatFcfa } from '../lib/types'
 
@@ -199,6 +200,9 @@ export default function Catalog() {
             <Link to="/catalog" className="tw-nav-item active">
               <IconHome className="tw-nav-icon" /> Accueil
             </Link>
+            <Link to="/filleuls" className="tw-nav-item">
+              <IconUsers className="tw-nav-icon" /> Filleuls
+            </Link>
             <Link to="/profile" className="tw-nav-item">
               <IconUser className="tw-nav-icon" /> Profil
             </Link>
@@ -277,19 +281,7 @@ export default function Catalog() {
         </Link>
       )}
 
-      <nav className="mob-bottom-nav">
-        <Link to="/catalog" className="mob-nav-item active">
-          <IconHome /><span>Accueil</span>
-        </Link>
-        <button
-          className="mob-nav-item"
-          onClick={() => document.querySelector<HTMLInputElement>('.tw-search')?.focus()}
-        >
-          <IconSearch /><span>Chercher</span>
-        </button>
-        <Link to="/profile" className="mob-nav-item"><IconUser /><span>Profil</span></Link>
-        {canHost && <Link to="/admin" className="mob-nav-item"><IconRadio /><span>Studio</span></Link>}
-      </nav>
+      <BottomNav active="home" />
     </div>
   )
 }

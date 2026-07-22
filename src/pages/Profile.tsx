@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { BottomNav } from '../components/BottomNav'
 import { ApiError, USER_KEY, USER_TOKEN_KEY, userApi } from '../lib/api'
-import { IconAlertTriangle, IconRadio, IconShield, IconTag, IconUser, IconUsers, IconX } from '../lib/icons'
+import { IconAlertTriangle, IconRadio, IconShield, IconTag, IconTrash, IconUser, IconUsers, IconX } from '../lib/icons'
 import { ALL_WEEKDAYS, WEEKDAY_LABELS, formatFcfa, type AuthUser, type Live, type Offer, type OfferAccessMode, type SbcTier, type Weekday } from '../lib/types'
 
 
@@ -46,6 +47,9 @@ export default function Profile() {
   // Waiver rules
   const [waiverBusy, setWaiverBusy] = useState<SbcTier | null>(null)
   const [waiverErr, setWaiverErr] = useState<string | null>(null)
+
+  // Live cancel
+  const [cancellingLiveId, setCancellingLiveId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!localStorage.getItem(USER_TOKEN_KEY)) { nav('/'); return }
@@ -187,6 +191,17 @@ export default function Profile() {
     } catch (err) {
       setWaiverErr(err instanceof ApiError ? err.message : String(err))
     } finally { setWaiverBusy(null) }
+  }
+
+  const cancelLive = async (l: Live) => {
+    if (!confirm(`Annuler définitivement « ${l.title} » ?`)) return
+    setCancellingLiveId(l.id)
+    try {
+      await userApi.post(`/lives/${l.id}/cancel`)
+      setLives((prev) => prev.filter((x) => x.id !== l.id))
+    } finally {
+      setCancellingLiveId(null)
+    }
   }
 
   if (loading && !user) {
@@ -491,13 +506,27 @@ export default function Profile() {
                 </span>
                 {l.offerId && <span className="chip mono chip-paid">PAYANT</span>}
               </div>
-              {(l.status === 'LIVE' || l.status === 'SCHEDULED') && (
-                <Link to="/admin" className="btn btn-sm">Studio →</Link>
-              )}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {(l.status === 'LIVE' || l.status === 'SCHEDULED') && (
+                  <Link to="/admin" className="btn btn-sm">Studio →</Link>
+                )}
+                {(l.status === 'SCHEDULED' || l.status === 'LIVE') && (
+                  <button
+                    className="btn btn-sm btn-danger"
+                    disabled={cancellingLiveId === l.id}
+                    onClick={() => cancelLive(l)}
+                    title="Annuler ce live"
+                  >
+                    <IconTrash />
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>
       </div>
+
+      <BottomNav active="profile" />
     </div>
   )
 }
