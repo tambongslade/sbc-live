@@ -776,7 +776,7 @@ body {
 
 .stream-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 18px;
   padding-bottom: 32px;
 }
@@ -807,9 +807,10 @@ body {
   box-shadow: var(--shadow-pop);
 }
 
+/* affiche portrait — format flyer 1080×1350 (4:5) */
 .stream-thumb-wrap {
   position: relative;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: 12px;
   background: var(--surface-2);
