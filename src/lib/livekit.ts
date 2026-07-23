@@ -7,6 +7,7 @@ export interface ChatMessage {
   text: string
   ts: number
   isLocal: boolean
+  replyTo?: { id: string; senderName: string; text: string; deleted: boolean } | null
 }
 
 const encoder = new TextEncoder()
@@ -19,8 +20,11 @@ export function useChat(room: Room, localName: string) {
   useEffect(() => {
     function onData(payload: Uint8Array, participant?: { identity: string; name?: string | null }) {
       try {
-        const { type, text, name } = JSON.parse(decoder.decode(payload)) as {
-          type: string; text: string; name: string
+        const { type, text, name, replyTo } = JSON.parse(decoder.decode(payload)) as {
+          type: string
+          text: string
+          name: string
+          replyTo?: { id: string; name: string; text: string }
         }
         if (type !== 'chat' || !text?.trim()) return
         setMessages((prev) => [
@@ -31,6 +35,9 @@ export function useChat(room: Room, localName: string) {
             text: text.trim(),
             ts: Date.now(),
             isLocal: false,
+            replyTo: replyTo
+              ? { id: replyTo.id, senderName: replyTo.name, text: replyTo.text, deleted: false }
+              : null,
           },
         ])
       } catch { /* ignore malformed packets */ }
@@ -39,14 +46,26 @@ export function useChat(room: Room, localName: string) {
     return () => { room.off(RoomEvent.DataReceived, onData) }
   }, [room])
 
-  const send = useCallback(async (text: string) => {
+  const send = useCallback(async (text: string, replyTo?: { id: string; senderName: string; text: string }) => {
     const trimmed = text.trim()
     if (!trimmed || room.state !== 'connected') return
-    const payload = encoder.encode(JSON.stringify({ type: 'chat', text: trimmed, name: localName }))
+    const payload = encoder.encode(JSON.stringify({
+      type: 'chat',
+      text: trimmed,
+      name: localName,
+      replyTo: replyTo ? { id: replyTo.id, name: replyTo.senderName, text: replyTo.text } : undefined,
+    }))
     await room.localParticipant.publishData(payload, { reliable: true })
     setMessages((prev) => [
       ...prev,
-      { id: `l-${Date.now()}-${idRef.current++}`, senderName: localName, text: trimmed, ts: Date.now(), isLocal: true },
+      {
+        id: `l-${Date.now()}-${idRef.current++}`,
+        senderName: localName,
+        text: trimmed,
+        ts: Date.now(),
+        isLocal: true,
+        replyTo: replyTo ? { ...replyTo, deleted: false } : null,
+      },
     ])
   }, [room, localName])
 

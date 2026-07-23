@@ -118,17 +118,20 @@ export function useLiveChat(room: Room, liveId: string | undefined, localName: s
   }, [liveId])
 
   const send = useCallback(
-    (text: string, replyToId?: string) => {
+    (text: string, replyTo?: LiveChatMessage) => {
       const trimmed = text.trim()
       if (!trimmed) return
+      const quote = replyTo
+        ? { id: replyTo.id, senderName: replyTo.senderName, text: replyTo.text }
+        : undefined
       const socket = sockRef.current
       if (socket?.connected) {
-        socket.emit('chat:send', { liveId, content: trimmed, replyToId })
+        socket.emit('chat:send', { liveId, content: trimmed, replyToId: replyTo?.id })
         // tant que le serveur n'a rien renvoyé, on double sur LiveKit pour
         // que les clients restés en repli voient aussi le message
-        if (!serverOk) lk.send(trimmed)
+        if (!serverOk) lk.send(trimmed, quote)
       } else {
-        lk.send(trimmed)
+        lk.send(trimmed, quote)
       }
     },
     [liveId, serverOk, lk],

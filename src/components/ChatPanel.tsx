@@ -4,7 +4,7 @@ import { IconX } from '../lib/icons'
 
 interface Props {
   messages: LiveChatMessage[]
-  onSend: (text: string, replyToId?: string) => void
+  onSend: (text: string, replyTo?: LiveChatMessage) => void
   disabled?: boolean
 }
 
@@ -35,7 +35,7 @@ export function ChatPanel({ messages, onSend, disabled }: Props) {
     if (!input) return
     const text = input.value.trim()
     if (!text) return
-    onSend(text, replyTo?.id)
+    onSend(text, replyTo ?? undefined)
     input.value = ''
     setReplyTo(null)
   }
