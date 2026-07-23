@@ -1182,6 +1182,18 @@ body {
     border-left: none;
     border-top: 1px solid var(--border);
   }
+
+  /* Plusieurs personnes à l'écran : 2 tuiles par ligne (240px min les
+     ferait passer sous la zone visible), et la scène devient défilable */
+  .player-video-wrap .tiles,
+  .console-stage .tiles {
+    overflow-y: auto;
+  }
+
+  .player-video-wrap .tile,
+  .console-stage .tile {
+    min-width: calc(50% - 12px);
+  }
 }
 
 .player-footer {
