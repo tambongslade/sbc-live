@@ -10,6 +10,8 @@ import {
   IconCalendar,
   IconCam,
   IconCamOff,
+  IconScreen,
+  IconScreenOff,
   IconSwitchCam,
   IconCheck,
   IconCopy,
@@ -23,7 +25,7 @@ import {
   IconUsers,
   IconX,
 } from '../lib/icons'
-import { acquireCamMic, createHostRoom, hasMultipleCameras, mediaErrorMessage, switchCamera, useElapsed, useRoomTick } from '../lib/livekit'
+import { acquireCamMic, canScreenShare, createHostRoom, hasMultipleCameras, mediaErrorMessage, screenSharers, switchCamera, useElapsed, useRoomTick } from '../lib/livekit'
 import {
   formatFcfa,
   normHand,
@@ -360,6 +362,14 @@ export default function AdminLive() {
     await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled)
   })
   const flipCam = () => run(() => switchCamera(room))
+  const toggleScreen = () => run(async () => {
+    try {
+      await room.localParticipant.setScreenShareEnabled(!room.localParticipant.isScreenShareEnabled)
+    } catch (e) {
+      if (e instanceof Error && e.name === 'NotAllowedError') return // sélection annulée
+      throw e
+    }
+  })
 
   async function copyShare() {
     if (!live?.shareUrl) return
@@ -773,6 +783,7 @@ export default function AdminLive() {
   /* ── live console ────────────────────────────────────────── */
   const { messages: chatMessages, send: sendChat } = useChat(room, hostName || 'Hôte')
 
+  const sharers = screenSharers(room)
   const remotes = Array.from(room.remoteParticipants.values())
   const onStage = remotes.filter(
     (p) => p.trackPublications.size > 0 || p.permissions?.canPublish === true,
@@ -809,6 +820,16 @@ export default function AdminLive() {
             <IconSwitchCam />
           </button>
         )}
+        {canScreenShare() && (
+          <button
+            className={`btn btn-icon btn-sm ${room.localParticipant.isScreenShareEnabled ? 'btn-primary' : ''}`}
+            onClick={toggleScreen}
+            disabled={busy}
+            title={room.localParticipant.isScreenShareEnabled ? 'Arrêter le partage d\'écran' : 'Partager l\'écran'}
+          >
+            {room.localParticipant.isScreenShareEnabled ? <IconScreenOff /> : <IconScreen />}
+          </button>
+        )}
         <button className="btn btn-sm" onClick={muteAll} disabled={busy} title="Couper tous les micros">
           <IconMicOff /> <span className="btn-label">Silence</span>
         </button>
@@ -820,8 +841,9 @@ export default function AdminLive() {
           {room.state !== ConnectionState.Connected && (
             <p className="hint" style={{ padding: '12px 16px' }}>Connexion au serveur vidéo…</p>
           )}
-          <div className={`tiles ${onStage.length === 0 ? 'tiles-solo' : ''}`} style={{ flex: 1 }}>
-            <VideoTile participant={room.localParticipant} big={onStage.length === 0} />
+          <div className={`tiles ${onStage.length === 0 && sharers.length === 0 ? 'tiles-solo' : ''}`} style={{ flex: 1 }}>
+            {sharers.map((p) => <VideoTile key={`${p.sid}-screen`} participant={p} screen />)}
+            <VideoTile participant={room.localParticipant} big={onStage.length === 0 && sharers.length === 0} />
             {onStage.map((p) => <VideoTile key={p.sid} participant={p} />)}
           </div>
           {err && <p className="err" style={{ padding: '8px 16px' }}>{err}</p>}

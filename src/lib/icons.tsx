@@ -6,6 +6,8 @@ import {
   Copy,
   Hand,
   House,
+  MonitorUp,
+  MonitorX,
   Mic,
   MicOff,
   Pencil,
@@ -52,4 +54,6 @@ export const IconTrash = wrap(Trash2)
 export const IconSearch = wrap(Search)
 export const IconHome = wrap(House)
 export const IconSwitchCam = wrap(SwitchCamera)
+export const IconScreen = wrap(MonitorUp)
+export const IconScreenOff = wrap(MonitorX)
 export const IconPlus = wrap(Plus)

@@ -9,8 +9,8 @@ function goFullscreen(el: HTMLElement) {
     (el as unknown as { webkitRequestFullscreen: () => void }).webkitRequestFullscreen()
 }
 
-export function VideoTile({ participant, big }: { participant: Participant; big?: boolean }) {
-  const camPub = participant.getTrackPublication(Track.Source.Camera)
+export function VideoTile({ participant, big, screen }: { participant: Participant; big?: boolean; screen?: boolean }) {
+  const camPub = participant.getTrackPublication(screen ? Track.Source.ScreenShare : Track.Source.Camera)
   const micPub = participant.getTrackPublication(Track.Source.Microphone)
   const camTrack = camPub?.track
   const micTrack = micPub?.track
@@ -28,20 +28,21 @@ export function VideoTile({ participant, big }: { participant: Participant; big?
     return () => { camTrack.detach(el) }
   }, [camTrack, camOn])
 
+  // l'audio du participant est joué par sa tuile caméra, pas sa tuile écran
   useEffect(() => {
-    if (participant.isLocal) return
+    if (participant.isLocal || screen) return
     const el = audioRef.current
     if (!micTrack || !el) return
     micTrack.attach(el)
     return () => { micTrack.detach(el) }
-  }, [micTrack, participant.isLocal])
+  }, [micTrack, participant.isLocal, screen])
 
   const name = participant.name || participant.identity
 
   return (
     <div
       ref={tileRef}
-      className={`tile ${participant.isSpeaking ? 'speaking' : ''} ${big ? 'tile-big' : ''}`}
+      className={`tile ${screen ? 'tile-screen' : ''} ${!screen && participant.isSpeaking ? 'speaking' : ''} ${big ? 'tile-big' : ''}`}
       data-identity={participant.identity}
     >
       {camOn ? (
@@ -55,9 +56,9 @@ export function VideoTile({ participant, big }: { participant: Participant; big?
       <div className="tile-label">
         <span className="mono">
           {name}
-          {participant.isLocal ? ' · vous' : ''}
+          {screen ? ' · écran' : participant.isLocal ? ' · vous' : ''}
         </span>
-        {micOn ? <IconMic /> : <IconMicOff className="ic-off" />}
+        {!screen && (micOn ? <IconMic /> : <IconMicOff className="ic-off" />)}
       </div>
       <button
         className="tile-fullscreen"

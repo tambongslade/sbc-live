@@ -10,11 +10,13 @@ import {
   IconHand,
   IconMic,
   IconMicOff,
+  IconScreen,
+  IconScreenOff,
   IconSwitchCam,
   IconUsers,
   IconVolume,
 } from '../lib/icons'
-import { createViewerRoom, hasMultipleCameras, mediaErrorMessage, switchCamera, useChat, useRoomTick } from '../lib/livekit'
+import { canScreenShare, createViewerRoom, hasMultipleCameras, mediaErrorMessage, screenSharers, switchCamera, useChat, useRoomTick } from '../lib/livekit'
 import { formatFcfa, type BillingCycle, type GuestEntry, type Live, type Paywall, type SubscriptionResponse, type TokenResponse } from '../lib/types'
 
 type Phase = 'loading' | 'notfound' | 'name' | 'waiting' | 'live' | 'ended' | 'paywall'
@@ -373,6 +375,7 @@ export default function GuestLive() {
   const publishing = lp.isMicrophoneEnabled || lp.isCameraEnabled
   const remotes = Array.from(room.remoteParticipants.values())
   const onStage = remotes.filter((p) => p.trackPublications.size > 0)
+  const sharers = screenSharers(room)
   const audienceCount = remotes.length + 1
 
   return (
@@ -414,19 +417,22 @@ export default function GuestLive() {
           )}
 
           <div className="player-video-wrap">
-            <div className={`tiles ${onStage.length <= 1 && !publishing ? 'tiles-solo' : ''}`}>
-              {onStage.length === 0 && !publishing && (
+            <div className={`tiles ${onStage.length <= 1 && !publishing && sharers.length === 0 ? 'tiles-solo' : ''}`}>
+              {onStage.length === 0 && !publishing && sharers.length === 0 && (
                 <div className="tile tile-big tile-wait">
                   <div className="tile-void">
                     <span style={{ fontSize: 14, fontWeight: 500 }}>l'animateur arrive…</span>
                   </div>
                 </div>
               )}
+              {sharers.map((p) => (
+                <VideoTile key={`${p.sid}-screen`} participant={p} screen />
+              ))}
               {onStage.map((p, i) => (
                 <VideoTile
                   key={p.sid}
                   participant={p}
-                  big={i === 0 && onStage.length === 1 && !publishing}
+                  big={i === 0 && onStage.length === 1 && !publishing && sharers.length === 0}
                 />
               ))}
               {publishing && <VideoTile participant={lp} />}
@@ -464,6 +470,20 @@ export default function GuestLive() {
                     title="Changer de caméra"
                   >
                     <IconSwitchCam />
+                  </button>
+                )}
+                {canScreenShare() && (
+                  <button
+                    className={`btn btn-icon ${lp.isScreenShareEnabled ? 'btn-primary' : ''}`}
+                    onClick={() =>
+                      lp.setScreenShareEnabled(!lp.isScreenShareEnabled)
+                        .catch((e: unknown) => {
+                          if (e instanceof Error && e.name === 'NotAllowedError') return // sélection annulée
+                          setErr(mediaErrorMessage(e))
+                        })}
+                    title={lp.isScreenShareEnabled ? 'Arrêter le partage d\'écran' : 'Partager l\'écran'}
+                  >
+                    {lp.isScreenShareEnabled ? <IconScreenOff /> : <IconScreen />}
                   </button>
                 )}
                 <span style={{ color: 'var(--muted)', fontSize: 13 }}>vous êtes sur scène</span>

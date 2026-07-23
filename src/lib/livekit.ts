@@ -1,4 +1,4 @@
-import { createLocalTracks, Room, RoomEvent, VideoPresets, type LocalTrack } from 'livekit-client'
+import { createLocalTracks, Room, RoomEvent, Track, VideoPresets, type LocalTrack, type Participant } from 'livekit-client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface ChatMessage {
@@ -112,6 +112,19 @@ export async function switchCamera(room: Room): Promise<void> {
   const idx = devices.findIndex((d) => d.deviceId === current)
   const next = devices[(idx + 1) % devices.length]
   await room.switchActiveDevice('videoinput', next.deviceId)
+}
+
+/** True when the browser can capture the screen (desktop browsers mostly). */
+export function canScreenShare(): boolean {
+  return typeof navigator !== 'undefined'
+    && !!navigator.mediaDevices
+    && 'getDisplayMedia' in navigator.mediaDevices
+}
+
+/** Everyone (local first) currently sharing their screen in the room. */
+export function screenSharers(room: Room): Participant[] {
+  const all: Participant[] = [room.localParticipant, ...Array.from(room.remoteParticipants.values())]
+  return all.filter((p) => !!p.getTrackPublication(Track.Source.ScreenShare)?.track)
 }
 
 /** True when the device exposes more than one camera. */
