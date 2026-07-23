@@ -72,6 +72,20 @@ export function mediaErrorMessage(e: unknown): string {
 }
 
 /**
+ * Sur téléphone tenu verticalement, capture en portrait 720×1280 (format
+ * naturel du phone, moins de bande passante à 24 i/s) ; sinon 720p paysage.
+ */
+export function defaultVideoCapture() {
+  const portraitPhone =
+    typeof window !== 'undefined' &&
+    window.innerWidth < 900 &&
+    window.matchMedia('(orientation: portrait)').matches
+  return portraitPhone
+    ? { resolution: { width: 720, height: 1280, frameRate: 24 } }
+    : { resolution: VideoPresets.h720.resolution }
+}
+
+/**
  * Capture camera + mic BEFORE any server-side state change, so a permission
  * refusal can't leave a live started with no host video. Throws an Error whose
  * message is already user-presentable (French).
@@ -83,7 +97,7 @@ export async function acquireCamMic(): Promise<LocalTrack[]> {
   try {
     return await createLocalTracks({
       audio: true,
-      video: { resolution: VideoPresets.h720.resolution },
+      video: defaultVideoCapture(),
     })
   } catch (e) {
     throw new Error(mediaErrorMessage(e))
@@ -114,7 +128,7 @@ export function createHostRoom() {
   return new Room({
     adaptiveStream: true,
     dynacast: true,
-    videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
+    videoCaptureDefaults: defaultVideoCapture(),
   })
 }
 
@@ -122,7 +136,8 @@ export function createHostRoom() {
 export function createViewerRoom() {
   return new Room({
     adaptiveStream: true,
-    videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
+    dynacast: true,
+    videoCaptureDefaults: defaultVideoCapture(),
   })
 }
 
