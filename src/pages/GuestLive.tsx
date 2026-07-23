@@ -16,7 +16,8 @@ import {
   IconUsers,
   IconVolume,
 } from '../lib/icons'
-import { canScreenShare, createViewerRoom, hasMultipleCameras, mediaErrorMessage, screenSharers, switchCamera, useChat, useRoomTick } from '../lib/livekit'
+import { useLiveChat } from '../lib/chat'
+import { canScreenShare, createViewerRoom, hasMultipleCameras, mediaErrorMessage, screenSharers, switchCamera, useRoomTick } from '../lib/livekit'
 import { formatFcfa, type BillingCycle, type GuestEntry, type Live, type Paywall, type SubscriptionResponse, type TokenResponse } from '../lib/types'
 
 type Phase = 'loading' | 'notfound' | 'name' | 'waiting' | 'live' | 'ended' | 'paywall'
@@ -368,7 +369,7 @@ export default function GuestLive() {
   const viewerName = storedUser
     ? (JSON.parse(storedUser) as { displayName: string }).displayName
     : (localStorage.getItem(GUEST_NAME_KEY) ?? 'Spectateur')
-  const { messages: chatMessages, send: sendChat } = useChat(room, viewerName)
+  const { messages: chatMessages, send: sendChat } = useLiveChat(room, live?.id, viewerName)
 
   const lp = room.localParticipant
   const canPublish = lp.permissions?.canPublish === true

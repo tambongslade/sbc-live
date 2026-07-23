@@ -1381,7 +1381,8 @@ body {
 }
 
 .chat-msg {
-  padding: 4px 16px;
+  position: relative;
+  padding: 4px 34px 4px 16px;
   font-size: 13px;
   line-height: 1.4;
   word-break: break-word;
@@ -1389,6 +1390,99 @@ body {
 
 .chat-msg:hover {
   background: rgba(255, 255, 255, 0.04);
+}
+
+/* message où je suis mentionné */
+.chat-msg-mention {
+  background: rgba(244, 145, 1, 0.12);
+  border-left: 2px solid var(--orange);
+}
+
+.chat-mention {
+  color: #f4b155;
+  font-weight: 700;
+}
+
+/* citation du message auquel on répond */
+.chat-reply-quote {
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 2px 8px;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-reply-quote-sender {
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.chat-reply-btn {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s;
+}
+
+.chat-msg:hover .chat-reply-btn,
+.chat-reply-btn:focus-visible {
+  opacity: 1;
+}
+
+.chat-reply-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--txt);
+}
+
+/* bandeau « Réponse à … » au-dessus du champ de saisie */
+.chat-reply-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 12px;
+}
+
+.chat-reply-banner-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-reply-banner-text {
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-reply-cancel {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+}
+
+.chat-reply-cancel:hover {
+  color: var(--txt);
 }
 
 .chat-sender {

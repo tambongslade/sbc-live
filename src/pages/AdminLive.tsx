@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ChatPanel } from '../components/ChatPanel'
 import { VideoTile } from '../components/VideoTile'
 import { ApiError, USER_KEY, USER_TOKEN_KEY, userApi } from '../lib/api'
-import { useChat } from '../lib/livekit'
+import { useLiveChat } from '../lib/chat'
 import {
   IconAlertTriangle,
   IconCalendar,
@@ -781,7 +781,7 @@ export default function AdminLive() {
   }
 
   /* ── live console ────────────────────────────────────────── */
-  const { messages: chatMessages, send: sendChat } = useChat(room, hostName || 'Hôte')
+  const { messages: chatMessages, send: sendChat } = useLiveChat(room, live?.id, hostName || 'Hôte')
 
   const sharers = screenSharers(room)
   const remotes = Array.from(room.remoteParticipants.values())
